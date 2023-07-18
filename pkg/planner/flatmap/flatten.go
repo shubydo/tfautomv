@@ -9,7 +9,7 @@ import (
 
 // Flatten takes any object and turns it into a flat map[string]interface{}.
 //
-// "obj" must be a map with keys that are string. Values must be slices, maps,
+// "obj" must be a map with keys that are strings. Values must be slices, maps,
 // primitives, or any combination of those together.
 func Flatten(obj interface{}) (map[string]interface{}, error) {
 	if obj == nil {

@@ -1,4 +1,4 @@
-package ignore
+package rules
 
 import (
 	"reflect"
@@ -62,7 +62,7 @@ func TestParseRule(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.s, func(t *testing.T) {
-			actual, err := ParseRule(tc.s)
+			actual, err := Parse(tc.s)
 
 			if err != nil && !tc.wantErr {
 				t.Errorf("unexpected error: %v", err)

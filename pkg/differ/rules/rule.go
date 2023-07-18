@@ -1,4 +1,4 @@
-package ignore
+package rules
 
 import (
 	"errors"
@@ -37,8 +37,8 @@ type Rule interface {
 	Equates(a, b interface{}) bool
 }
 
-// ParseRule converts a string into a Rule.
-func ParseRule(s string) (Rule, error) {
+// Parse converts a string into a Rule.
+func Parse(s string) (Rule, error) {
 	parts := strings.SplitN(s, ":", 2)
 	if len(parts) < 2 {
 		return nil, errors.New("invalid syntax")
@@ -58,10 +58,10 @@ func ParseRule(s string) (Rule, error) {
 	}
 }
 
-// MustParseRule converts a string into a Rule. MustParseRule panics if the
+// MustParse converts a string into a Rule. MustParse panics if the
 // string is not a valid rule.
-func MustParseRule(s string) Rule {
-	r, err := ParseRule(s)
+func MustParse(s string) Rule {
+	r, err := Parse(s)
 	if err != nil {
 		panic(fmt.Sprintf("MustParseRule(): %v", err))
 	}

@@ -1,4 +1,4 @@
-package ignore
+package rules
 
 type baseRule struct {
 	resourceType string
