@@ -7,18 +7,18 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-exec/tfexec"
-
-	"github.com/busser/tfautomv/internal/format"
-	"github.com/busser/tfautomv/internal/terraform"
-	"github.com/busser/tfautomv/internal/tfautomv"
-	"github.com/busser/tfautomv/internal/tfautomv/ignore"
+	"github.com/busser/tfautomv/pkg/differ"
+	"github.com/busser/tfautomv/pkg/differ/rules"
+	"github.com/busser/tfautomv/pkg/matcher"
+	"github.com/busser/tfautomv/pkg/mover"
+	"github.com/busser/tfautomv/pkg/planner"
+	"github.com/busser/tfautomv/pkg/terraform"
+	"github.com/busser/tfautomv/pkg/writer"
 )
 
 func main() {
 	if err := run(); err != nil {
-		os.Stderr.WriteString(format.Error(err))
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -29,120 +29,68 @@ var tfautomvVersion string
 func run() error {
 	parseFlags()
 
-	if noColor {
-		format.NoColor = true
-	}
-
 	if printVersion {
 		fmt.Println(tfautomvVersion)
 		return nil
 	}
 
-	tf, err := tfexec.NewTerraform(".", terraformBin)
-	if err != nil {
-		return err
+	modulePaths := flag.Args()
+	if len(modulePaths) == 0 {
+		modulePaths = []string{"."}
 	}
 
 	ctx := context.TODO()
 
-	// Some Terraform versions do not support some of tfautomv's output options.
-	// Check that everything is OK early on, to avoid wasting time running a
-	// plan for nothing.
-
-	tfVer, _, err := tf.Version(ctx, false)
-	if err != nil {
-		return err
-	}
-
-	switch outputFormat {
-	case "blocks":
-		if tfVer.LessThan(version.Must(version.NewVersion("1.1"))) {
-			return fmt.Errorf("terraform version %s does not support moved blocks", tfVer.String())
+	var plans []terraform.Plan
+	for _, modulePath := range modulePaths {
+		planner, err := planner.New(
+			planner.WithWorkdir(modulePath),
+			planner.WithTerraformBin(terraformBin),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create planner for module %q: %w", modulePath, err)
 		}
-	case "commands":
-	default:
-		return fmt.Errorf("unknown output format %q", outputFormat)
+		plan, err := planner.Plan(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to plan module %q: %w", modulePath, err)
+		}
+		plans = append(plans, plan)
 	}
 
-	// Parse rules early on so that the user gets quick feedback in case of
-	// syntax errors.
-	var rules []ignore.Rule
+	var userRules []rules.Rule
 	for _, raw := range ignoreRules {
-		r, err := ignore.ParseRule(raw)
+		r, err := rules.Parse(raw)
 		if err != nil {
 			return fmt.Errorf("invalid rule passed with -ignore flag %q: %w", raw, err)
 		}
-		rules = append(rules, r)
+		userRules = append(userRules, r)
 	}
 
-	// Terraform's plan contains a lot of information. For now, this is all we
-	// need. In the future, we may choose to use other sources of information.
-
-	logln("Running \"terraform init\"...")
-	err = tf.Init(ctx)
+	differ, err := differ.New(differ.WithRules(userRules...))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create differ: %w", err)
 	}
 
-	logln("Running \"terraform plan\"...")
-	planFile, err := os.CreateTemp("", "tfautomv.*.plan")
+	matcher, err := matcher.New(matcher.WithDiffer(differ))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create matcher: %w", err)
 	}
-	defer os.Remove(planFile.Name())
-	if _, err := tf.Plan(context.TODO(), tfexec.Out(planFile.Name())); err != nil {
-		return err
-	}
-	plan, err := tf.ShowPlanFile(context.TODO(), planFile.Name())
+
+	matches := matcher.FindMatches(plans...)
+
+	moves := mover.New().FindMoves(matches)
+
+	writer, err := writer.New(writer.WithFormat(writer.Format(outputFormat)))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create writer: %w", err)
 	}
 
-	analysis, err := tfautomv.AnalysisFromPlan(plan, rules)
+	err = writer.Write(moves)
 	if err != nil {
-		return err
-	}
-	if showAnalysis {
-		fmt.Fprint(os.Stderr, format.Analysis(analysis))
-	}
-
-	moves := tfautomv.MovesFromAnalysis(analysis)
-	if len(moves) == 0 {
-		fmt.Fprint(os.Stderr, format.Done("Found no moves to make"))
-		return nil
-	}
-
-	// At this point, we need to output the moves we found. The Terraform
-	// community originally used `tf state mv` commands. Terraform 1.1+ supports
-	// moved blocks as a replacement, but those remain incomplete for now.
-	// Community tools like tfmigrate are also popular.
-
-	if dryRun {
-		fmt.Fprint(os.Stderr, format.Moves(moves))
-		return nil
-	}
-
-	switch outputFormat {
-	case "blocks":
-		err = terraform.AppendMovesToFile(moves, "moves.tf")
-		if err != nil {
-			return err
-		}
-		fmt.Fprint(os.Stderr, format.Done(fmt.Sprintf("Added %d moved blocks to \"moves.tf\".", len(moves))))
-
-	case "commands":
-		terraform.WriteMovesShellCommands(moves, os.Stdout)
-		fmt.Fprint(os.Stderr, format.Done(fmt.Sprintf("Wrote %d commands to standard output.", len(moves))))
-
-	default:
-		return fmt.Errorf("unknown output format %q", outputFormat)
+		return fmt.Errorf("failed to write moves: %w", err)
 	}
 
 	return nil
-}
-
-func logln(msg string) {
-	fmt.Fprint(os.Stderr, format.Info(msg))
 }
 
 // Flags

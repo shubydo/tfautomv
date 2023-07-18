@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/busser/tfautomv/internal/slices"
 	"github.com/busser/tfautomv/pkg/logger"
 	"github.com/busser/tfautomv/pkg/planner/flatmap"
+	"github.com/busser/tfautomv/pkg/slices"
 	"github.com/busser/tfautomv/pkg/terraform"
 
 	"github.com/hashicorp/terraform-exec/tfexec"

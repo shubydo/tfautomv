@@ -1,4 +1,4 @@
-package Terraform
+package terraform
 
 // A Match represents a pair of Terraform resources: one that Terraform plans to
 // create and another that Terraform plans to delete. These resources are said

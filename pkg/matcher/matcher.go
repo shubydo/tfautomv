@@ -1,5 +1,11 @@
 package matcher
 
+import (
+	"fmt"
+
+	"github.com/busser/tfautomv/pkg/terraform"
+)
+
 // Matcher finds pairs of Terraform resources that are likely the same resource.
 type Matcher struct {
 	differ Differ
@@ -28,7 +34,7 @@ func New(opts ...Option) (*Matcher, error) {
 	}
 
 	return &Matcher{
-		differ: s.differ
+		differ: s.differ,
 	}, nil
 }
 
@@ -36,10 +42,10 @@ func New(opts ...Option) (*Matcher, error) {
 // Terraform plans to delete of the same type. If there is no difference between
 // the two resources, then those resources match.
 func (m *Matcher) FindMatches(plans ...terraform.Plan) []terraform.Match {
-	
+
 	// First, group resources by type and the action Terraform plans to take.
-	createByType := make(map[string][]Resource)
-	deleteByType := make(map[string][]Resource)
+	createByType := make(map[string][]terraform.Resource)
+	deleteByType := make(map[string][]terraform.Resource)
 	for _, p := range plans {
 		for _, r := range p.PlannedForCreation {
 			createByType[r.Type] = append(createByType[r.Type], r)
@@ -56,7 +62,11 @@ func (m *Matcher) FindMatches(plans ...terraform.Plan) []terraform.Match {
 			for _, d := range deleteByType[t] {
 				diff := m.differ.Diff(c, d)
 				if diff.IsMatch() {
-					matches = append(matches, terraform.NewMatch(c, d))
+					m := terraform.Match{
+						PlannedForCreation: c,
+						PlannedForDeletion: d,
+					}
+					matches = append(matches, m)
 				}
 			}
 		}

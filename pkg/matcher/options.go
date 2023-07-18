@@ -1,5 +1,7 @@
 package matcher
 
+import "fmt"
+
 // An Option configures a Matcher's behavior.
 type Option func(*settings)
 

@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/terraform-exec/tfexec"
 	tfjson "github.com/hashicorp/terraform-json"
 
-	"github.com/busser/tfautomv/internal/slices"
+	"github.com/busser/tfautomv/pkg/slices"
 )
 
 // ANSI escape sequence used for color output
@@ -29,9 +29,7 @@ func TestE2E(t *testing.T) {
 		workdir string
 		args    []string
 
-		wantChanges       int
-		wantOutputInclude []string
-		wantOutputExclude []string
+		wantChanges int
 
 		skip       bool
 		skipReason string
@@ -40,35 +38,23 @@ func TestE2E(t *testing.T) {
 			name:        "same attributes",
 			workdir:     filepath.Join("testdata", "same-attributes"),
 			wantChanges: 0,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
 		},
 		{
 			name:        "requires dependency analysis",
 			workdir:     filepath.Join("testdata", "requires-dependency-analysis"),
 			wantChanges: 0,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
-			skip:       true,
-			skipReason: "tfautomv cannot yet solve this case",
+			skip:        true,
+			skipReason:  "tfautomv cannot yet solve this case",
 		},
 		{
 			name:        "same type",
 			workdir:     filepath.Join("testdata", "same-type"),
 			wantChanges: 0,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
 		},
 		{
 			name:        "different attributes",
 			workdir:     filepath.Join("testdata", "different-attributes"),
 			wantChanges: 2,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
 		},
 		{
 			name:    "ignore different attributes",
@@ -77,20 +63,6 @@ func TestE2E(t *testing.T) {
 				"-ignore=everything:random_pet:length",
 			},
 			wantChanges: 1,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
-		},
-		{
-			name:    "no color",
-			workdir: filepath.Join("testdata", "same-attributes"),
-			args: []string{
-				"-no-color",
-			},
-			wantChanges: 0,
-			wantOutputExclude: []string{
-				colorEscapeSequence,
-			},
 		},
 		{
 			name:        "terraform cloud",
@@ -106,9 +78,6 @@ func TestE2E(t *testing.T) {
 				"-terraform-bin=terragrunt",
 			},
 			wantChanges: 0,
-			wantOutputInclude: []string{
-				colorEscapeSequence,
-			},
 		},
 	}
 
@@ -176,22 +145,6 @@ func TestE2E(t *testing.T) {
 
 					if err := tfautomvCmd.Run(); err != nil {
 						t.Fatalf("running tfautomv: %v", err)
-					}
-
-					/*
-						Validate that tfautomv produced the expected output.
-					*/
-
-					outputStr := tfautomvCompleteOutput.String()
-					for _, s := range tc.wantOutputInclude {
-						if !strings.Contains(outputStr, s) {
-							t.Errorf("output should contain %q but does not", s)
-						}
-					}
-					for _, s := range tc.wantOutputExclude {
-						if strings.Contains(outputStr, s) {
-							t.Errorf("output should not contain %q but does", s)
-						}
 					}
 
 					/*
