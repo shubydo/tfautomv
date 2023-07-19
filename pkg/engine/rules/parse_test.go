@@ -3,12 +3,14 @@ package rules
 import (
 	"reflect"
 	"testing"
+
+	"github.com/busser/tfautomv/pkg/engine"
 )
 
 func TestParseRule(t *testing.T) {
 	tt := []struct {
 		s       string
-		want    Rule
+		want    engine.Rule
 		wantErr bool
 	}{
 		// Everything rule

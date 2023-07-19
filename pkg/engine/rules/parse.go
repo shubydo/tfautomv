@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/busser/tfautomv/pkg/engine"
 )
 
 // A RuleType identifies a rule's logic.
@@ -22,23 +24,8 @@ const (
 	RuleTypeWhitespace RuleType = "whitespace"
 )
 
-// A Rule allows tfautomv to equate certains attribute values that would
-// normally be considered different.
-type Rule interface {
-	// Each rule has a unique string representation. This representation is how
-	// users provides rules to tfautomv.
-	fmt.Stringer
-
-	// AppliesTo returns wether the Rule applies to the given resource type and
-	// attribute.
-	AppliesTo(resourceType, attribute string) bool
-
-	// Equates checks whether two values match, according to the Rule's logic.
-	Equates(a, b interface{}) bool
-}
-
 // Parse converts a string into a Rule.
-func Parse(s string) (Rule, error) {
+func Parse(s string) (engine.Rule, error) {
 	parts := strings.SplitN(s, ":", 2)
 	if len(parts) < 2 {
 		return nil, errors.New("invalid syntax")
@@ -60,7 +47,7 @@ func Parse(s string) (Rule, error) {
 
 // MustParse converts a string into a Rule. MustParse panics if the
 // string is not a valid rule.
-func MustParse(s string) Rule {
+func MustParse(s string) engine.Rule {
 	r, err := Parse(s)
 	if err != nil {
 		panic(fmt.Sprintf("MustParseRule(): %v", err))

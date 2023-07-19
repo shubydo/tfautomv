@@ -1,52 +1,133 @@
 package terraform
 
-import "sort"
+import (
+	"fmt"
+	"io"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+)
 
-// A Move represents a Terraform state mv operation, where a resource is moved
-// from one address to another. A resource can be moved within the same module
-// or to a different module.
+// TODO: Document.
 type Move struct {
-	// The module the resource is being moved from.
-	SourceModule Module
-	// The module the resource is being moved to. This is equal to FromModule
-	// if the resource is being moved within the same module.
-	DestinationModule Module
-
-	// The resource's address before the move.
-	SourceAddress string
-	// The resource's address after the move.
-	DestinationAddress string
+	FromWorkdir string
+	ToWorkdir   string
+	FromAddress string
+	ToAddress   string
 }
 
-// NewMove builds a Move from two Resources.
-func NewMove(source, destination Resource) Move {
-	return Move{
-		SourceModule:       source.Module,
-		DestinationModule:  destination.Module,
-		SourceAddress:      source.Address,
-		DestinationAddress: destination.Address,
-	}
+func (m Move) block() string {
+	return fmt.Sprintf("moved {\n  from = %s\n  to   = %s\n}", m.FromAddress, m.ToAddress)
 }
 
-// SortMoves puts the given moves in an arbitrary, deterministic order.
-func SortMoves(moves []Move) {
-	sort.Slice(moves, func(i, j int) bool {
-		a, b := moves[i], moves[j]
+func (m Move) isWithinSameWorkdir() bool {
+	return m.FromWorkdir == m.ToWorkdir
+}
 
-		// Sort by module before address and, within the same module, by source
-		// before target.
+// TODO: Document.
+func WriteMovedBlocks(w io.Writer, moves []Move) error {
+	var blocks []string
 
-		switch {
-		case a.SourceModule.Path != b.SourceModule.Path:
-			return a.SourceModule.Path < b.SourceModule.Path
-		case a.DestinationModule.Path != b.DestinationModule.Path:
-			return a.DestinationModule.Path < b.DestinationModule.Path
-		case a.SourceAddress != b.SourceAddress:
-			return a.SourceAddress < b.SourceAddress
-		case a.DestinationAddress != b.DestinationAddress:
-			return a.DestinationAddress < b.DestinationAddress
-		default:
-			return false // a == b so it doesn't matter what we return here
+	for _, move := range moves {
+		if !move.isWithinSameWorkdir() {
+			return fmt.Errorf("cannot write blocks for moves between different working directories")
 		}
-	})
+
+		blocks = append(blocks, move.block())
+	}
+
+	_, err := w.Write([]byte(strings.Join(blocks, "\n")))
+
+	return err
+}
+
+// TODO: Document.
+func WriteMoveCommands(w io.Writer, moves []Move) error {
+	var commands []string
+
+	// Start with moves within the same module.
+
+	for _, m := range moves {
+		if m.FromWorkdir == m.ToWorkdir {
+			var chdirFlag string
+			if m.FromWorkdir != "." {
+				chdirFlag = fmt.Sprintf("-chdir=%q ", m.FromWorkdir)
+			}
+
+			commands = append(commands,
+				fmt.Sprintf("terraform %s state mv %q %q",
+					chdirFlag, m.FromAddress, m.ToAddress),
+			)
+		}
+	}
+
+	// Then, pull the states of all working directories that require
+	// cross-directory moves.
+
+	var workdirs []string
+	for _, m := range moves {
+		if m.FromWorkdir != m.ToWorkdir {
+			workdirs = append(workdirs, m.FromWorkdir, m.ToWorkdir)
+		}
+	}
+	workdirs = unique(workdirs)
+	sort.Strings(workdirs)
+
+	const localCopyFileName = "tfautomv-local-copy.tfstate"
+	backupFileName := fmt.Sprintf("tfautomv-backup-%d.tfstate", time.Now().Unix())
+
+	for _, module := range workdirs {
+		commands = append(commands,
+			fmt.Sprintf("terraform -chdir=%q state pull > %q",
+				module, filepath.Join(module, localCopyFileName)),
+			fmt.Sprintf("cp %q %q",
+				filepath.Join(module, localCopyFileName),
+				filepath.Join(module, backupFileName)),
+		)
+	}
+
+	// Next, perform all the moves.
+
+	for _, move := range moves {
+		if move.FromWorkdir == move.ToWorkdir {
+			// Already handled above.
+			continue
+		}
+
+		commands = append(commands,
+			fmt.Sprintf("terraform state mv -state=%q -state-out=%q %q %q",
+				filepath.Join(move.FromWorkdir, localCopyFileName),
+				filepath.Join(move.ToWorkdir, localCopyFileName),
+				move.FromAddress,
+				move.ToAddress),
+		)
+	}
+
+	// Then, push the states of all modules we manipulated.
+
+	for _, m := range workdirs {
+		commands = append(commands,
+			fmt.Sprintf("terraform -chdir=%q state push %q",
+				m, localCopyFileName),
+		)
+	}
+
+	// And we're done.
+
+	_, err := fmt.Fprint(w, strings.Join(commands, "\n"))
+
+	return err
+}
+
+func unique(s []string) []string {
+	seen := make(map[string]struct{})
+	var unique []string
+	for _, e := range s {
+		if _, ok := seen[e]; !ok {
+			unique = append(unique, e)
+			seen[e] = struct{}{}
+		}
+	}
+	return unique
 }

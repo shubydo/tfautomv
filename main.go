@@ -6,14 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/busser/tfautomv/pkg/differ"
-	"github.com/busser/tfautomv/pkg/differ/rules"
-	"github.com/busser/tfautomv/pkg/matcher"
-	"github.com/busser/tfautomv/pkg/mover"
-	"github.com/busser/tfautomv/pkg/planner"
+	"github.com/busser/tfautomv/pkg/engine"
+	"github.com/busser/tfautomv/pkg/engine/rules"
 	"github.com/busser/tfautomv/pkg/terraform"
-	"github.com/busser/tfautomv/pkg/writer"
 )
 
 func main() {
@@ -29,6 +26,10 @@ var tfautomvVersion string
 func run() error {
 	parseFlags()
 
+	if noColor {
+		// TODO
+	}
+
 	if printVersion {
 		fmt.Println(tfautomvVersion)
 		return nil
@@ -41,53 +42,71 @@ func run() error {
 
 	ctx := context.TODO()
 
-	var plans []terraform.Plan
+	planOptions := []terraform.PlanOption{
+		terraform.WithTerraformBin(terraformBin),
+	}
+
+	var plans []engine.Plan
 	for _, modulePath := range modulePaths {
-		planner, err := planner.New(
-			planner.WithWorkdir(modulePath),
-			planner.WithTerraformBin(terraformBin),
-		)
+		jsonPlan, err := terraform.GetPlan(ctx, modulePath, planOptions...)
 		if err != nil {
-			return fmt.Errorf("failed to create planner for module %q: %w", modulePath, err)
+			return fmt.Errorf("failed to get plan for module %q: %w", modulePath, err)
 		}
-		plan, err := planner.Plan(ctx)
+
+		plan, err := engine.SummarizeJSONPlan(modulePath, jsonPlan)
 		if err != nil {
-			return fmt.Errorf("failed to plan module %q: %w", modulePath, err)
+			return fmt.Errorf("failed to summarize plan for module %q: %w", modulePath, err)
 		}
+
 		plans = append(plans, plan)
 	}
 
-	var userRules []rules.Rule
+	var userRules []engine.Rule
 	for _, raw := range ignoreRules {
-		r, err := rules.Parse(raw)
+		rule, err := rules.Parse(raw)
 		if err != nil {
 			return fmt.Errorf("invalid rule passed with -ignore flag %q: %w", raw, err)
 		}
-		userRules = append(userRules, r)
+
+		userRules = append(userRules, rule)
 	}
 
-	differ, err := differ.New(differ.WithRules(userRules...))
-	if err != nil {
-		return fmt.Errorf("failed to create differ: %w", err)
+	comparisons := engine.ComparePlans(plans, userRules)
+	moves := engine.DetermineMoves(comparisons)
+
+	if showAnalysis {
+		// TODO
 	}
 
-	matcher, err := matcher.New(matcher.WithDiffer(differ))
-	if err != nil {
-		return fmt.Errorf("failed to create matcher: %w", err)
+	if dryRun {
+		// TODO
 	}
 
-	matches := matcher.FindMatches(plans...)
+	terraformMoves := engineMovesToTerraformMoves(moves)
 
-	moves := mover.New().FindMoves(matches)
+	switch outputFormat {
+	case "blocks":
+		if len(modulePaths) > 1 {
+			return fmt.Errorf("blocks output format is not supported for multiple modules")
+		}
 
-	writer, err := writer.New(writer.WithFormat(writer.Format(outputFormat)))
-	if err != nil {
-		return fmt.Errorf("failed to create writer: %w", err)
-	}
+		movesFilePath := filepath.Join(modulePaths[0], "moves.tf")
+		movesFile, err := os.OpenFile(movesFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open %q: %w", movesFilePath, err)
+		}
 
-	err = writer.Write(moves)
-	if err != nil {
-		return fmt.Errorf("failed to write moves: %w", err)
+		err = terraform.WriteMovedBlocks(movesFile, terraformMoves)
+		if err != nil {
+			return fmt.Errorf("failed to write moved blocks: %w", err)
+		}
+	case "commands":
+		err := terraform.WriteMoveCommands(os.Stdout, terraformMoves)
+		if err != nil {
+			return fmt.Errorf("failed to write move commands: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown output format %q", outputFormat)
 	}
 
 	return nil
@@ -130,4 +149,19 @@ func (v stringSliceValue) String() string {
 func (v stringSliceValue) Set(raw string) error {
 	*v.s = append(*v.s, raw)
 	return nil
+}
+
+func engineMovesToTerraformMoves(moves []engine.Move) []terraform.Move {
+	var terraformMoves []terraform.Move
+
+	for _, m := range moves {
+		terraformMoves = append(terraformMoves, terraform.Move{
+			FromWorkdir: m.SourceModule,
+			ToWorkdir:   m.DestinationModule,
+			FromAddress: m.SourceAddress,
+			ToAddress:   m.DestinationAddress,
+		})
+	}
+
+	return terraformMoves
 }

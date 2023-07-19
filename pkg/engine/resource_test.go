@@ -1,22 +1,25 @@
-package differ
+package engine_test
 
 import (
 	"testing"
 
-	"github.com/busser/tfautomv/pkg/differ/rules"
-	"github.com/busser/tfautomv/pkg/terraform"
+	"github.com/busser/tfautomv/pkg/engine"
+	"github.com/busser/tfautomv/pkg/engine/rules"
+
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDiff(t *testing.T) {
+func TestCompareResources(t *testing.T) {
 	tests := []struct {
 		name string
 
-		create terraform.Resource
-		delete terraform.Resource
-		rules  []rules.Rule
+		create engine.Resource
+		delete engine.Resource
+		rules  []engine.Rule
 
-		want terraform.Diff
+		wantMatching    []string
+		wantMismatching []string
+		wantIgnored     []string
 	}{
 		{
 			name: "without rules",
@@ -38,10 +41,8 @@ func TestDiff(t *testing.T) {
 				"g": "whatever",
 				"h": 789,
 			}),
-			want: terraform.Diff{
-				MatchingAttributes:    []string{"a", "b"},
-				MismatchingAttributes: []string{"c", "e", "f", "h"},
-			},
+			wantMatching:    []string{"a", "b"},
+			wantMismatching: []string{"c", "e", "f", "h"},
 		},
 
 		{
@@ -68,54 +69,41 @@ func TestDiff(t *testing.T) {
 				"i": "{\n\t\"foo\": \"bar\"\n}",
 				"j": "b/some_string",
 			}),
-			rules: []rules.Rule{
+			rules: []engine.Rule{
 				rules.MustParse("everything:dummy_type:c"),
 				rules.MustParse("whitespace:dummy_type:i"),
 				rules.MustParse("prefix:dummy_type:j:b/"),
 			},
-			want: terraform.Diff{
-				MatchingAttributes:    []string{"a", "b"},
-				MismatchingAttributes: []string{"e", "f", "h"},
-				IgnoredAttributes:     []string{"c", "i", "j"},
-			},
+			wantMatching:    []string{"a", "b"},
+			wantMismatching: []string{"e", "f", "h"},
+			wantIgnored:     []string{"c", "i", "j"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newTestDiffer(t, tt.rules).Diff(tt.create, tt.delete)
-			assertDiffsAreEqual(t, tt.want, got)
+			want := engine.ResourceComparison{
+				PlannedForCreation:    tt.create,
+				PlannedForDeletion:    tt.delete,
+				MatchingAttributes:    tt.wantMatching,
+				MismatchingAttributes: tt.wantMismatching,
+				IgnoredAttributes:     tt.wantIgnored,
+			}
+			got := engine.CompareResources(tt.create, tt.delete, tt.rules)
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 
 }
 
-func dummyResource(attributes map[string]any) terraform.Resource {
-	return terraform.Resource{
-		Module: terraform.Module{
-			Path: "dummy_module_path",
-		},
+func dummyResource(attributes map[string]any) engine.Resource {
+	return engine.Resource{
+		ModuleID:   "dummy_module_id",
 		Type:       "dummy_type",
 		Address:    "dummy_address",
 		Attributes: attributes,
-	}
-}
-
-func newTestDiffer(t *testing.T, rules []rules.Rule) *Differ {
-	t.Helper()
-
-	differ, err := New(WithRules(rules...))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	return differ
-}
-
-func assertDiffsAreEqual(t *testing.T, want, got terraform.Diff) {
-	t.Helper()
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("mismatch (-want +got):\n%s", diff)
 	}
 }
