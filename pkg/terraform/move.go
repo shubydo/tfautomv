@@ -9,12 +9,23 @@ import (
 	"time"
 )
 
-// TODO: Document.
+// A Move represents a an object in Terraform's state that should be moved to
+// another address and possibly to another working directory.
+// This is analogous to a moved block or a state mv command.
 type Move struct {
+	// The working directory the resource is being moved from. Equal to
+	// ToWorkdir when the resource is being moved within the same working
+	// directory.
 	FromWorkdir string
-	ToWorkdir   string
+	// The working directory the resource is being moved to. Equal to
+	// FromWorkdir when the resource is being moved within the same working
+	// directory.
+	ToWorkdir string
+
+	// The resource's address before the move.
 	FromAddress string
-	ToAddress   string
+	// The resource's address after the move.
+	ToAddress string
 }
 
 func (m Move) block() string {
@@ -25,7 +36,12 @@ func (m Move) isWithinSameWorkdir() bool {
 	return m.FromWorkdir == m.ToWorkdir
 }
 
-// TODO: Document.
+// WriteMovedBlocks encodes the given moves as a series of Terraform moved
+// blocks, in HCL, and writes them to the given writer.
+//
+// Currently, moved blocks cannot be used to move resources between different
+// working directories. If the given moves contain such a move, WriteMovedBlocks
+// returns an error.
 func WriteMovedBlocks(w io.Writer, moves []Move) error {
 	var blocks []string
 
@@ -42,7 +58,19 @@ func WriteMovedBlocks(w io.Writer, moves []Move) error {
 	return err
 }
 
-// TODO: Document.
+// WriteMoveCommands encodes the given moves as a series of Terraform CLI
+// commands and writes them to the given writer.
+//
+// Moving resources across working directories requires a bit of extra work.
+// In those cases, WriteMoveCommands will write a series of commands that
+// copies the state of the working directories involved to the local filesystem,
+// performs the moves, and pushes the states back to configured backends.
+//
+// Since Terraform's state can contain sensitive information, the copies are
+// written in the same directory as the working directories. This allows the
+// user to know exactly where their state is stored. The files are not deleted
+// automatically, in case the user wants to use them (to revert any changes, for
+// instance).
 func WriteMoveCommands(w io.Writer, moves []Move) error {
 	var commands []string
 

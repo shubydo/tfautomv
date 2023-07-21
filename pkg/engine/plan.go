@@ -9,19 +9,23 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 )
 
-// TODO: Document.
+// A Plan represents a Terraform plan. It contains the resources Terraform plans
+// to create and the resources Terraform plans to delete.
 type Plan struct {
-	ModuleID           string
+	// The resources Terraform plans to create.
 	PlannedForCreation []Resource
+	// The resources Terraform plans to delete.
 	PlannedForDeletion []Resource
 }
 
-// TODO: Document.
+// SummarizeJSONPlan takes the JSON representation of a Terraform plan, as
+// returned by the Terraform CLI, and condenses it into a Plan containing all
+// the information the tfautomv engine needs.
+//
+// The moduleID argument can be any string, but must be unique for each Plan
+// passed to the engine. Typically, it is the path to the module's directory.
 func SummarizeJSONPlan(moduleID string, jsonPlan *tfjson.Plan) (Plan, error) {
-	plan := Plan{
-		ModuleID: moduleID,
-	}
-
+	var plannedForCreation, plannedForDeletion []Resource
 	for _, rc := range jsonPlan.ResourceChanges {
 		isCreated := slices.Contains(rc.Change.Actions, tfjson.ActionCreate)
 		isDestroyed := slices.Contains(rc.Change.Actions, tfjson.ActionDelete)
@@ -43,7 +47,7 @@ func SummarizeJSONPlan(moduleID string, jsonPlan *tfjson.Plan) (Plan, error) {
 				Attributes: attributes,
 			}
 
-			plan.PlannedForCreation = append(plan.PlannedForCreation, r)
+			plannedForCreation = append(plannedForCreation, r)
 		}
 
 		if isDestroyed {
@@ -59,14 +63,23 @@ func SummarizeJSONPlan(moduleID string, jsonPlan *tfjson.Plan) (Plan, error) {
 				Attributes: attributes,
 			}
 
-			plan.PlannedForDeletion = append(plan.PlannedForDeletion, r)
+			plannedForDeletion = append(plannedForDeletion, r)
 		}
 	}
 
-	return plan, nil
+	return Plan{
+		PlannedForCreation: plannedForCreation,
+		PlannedForDeletion: plannedForDeletion,
+	}, nil
 }
 
-// TODO: Document.
+// ComparePlans compares each resource Terraform plans to create to each
+// resource Terraform plans to delete of the same type. For each resource pair,
+// it returns a ResourceComparison containing the result of the comparison.
+//
+// By default, the comparison checks whether the resources' attributes are
+// equal. This behavior can be tweeked by passing in engine rules that allow
+// certain differences to be ignored.
 func ComparePlans(plans []Plan, rules []Rule) []ResourceComparison {
 	// First, group resources by type and the action Terraform plans to take.
 	createByType := make(map[string][]Resource)

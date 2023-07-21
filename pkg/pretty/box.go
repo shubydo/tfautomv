@@ -1,7 +1,6 @@
 package pretty
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 )
@@ -9,16 +8,16 @@ import (
 func BoxItems(title string, items []string, color string) string {
 
 	var (
-		boxStart     = Color(fmt.Sprintf("[%s][bold]├─", color))
-		boxLine      = Color(fmt.Sprintf("[%s][bold]│", color))
-		boxSeparator = Color(fmt.Sprintf("[%s][bold]├─", color))
-		boxEnd       = Color(fmt.Sprintf("[%s][bold]└─", color))
+		boxStart     = Colorf("[%s][bold]├─", color)
+		boxLine      = Colorf("[%s][bold]│", color)
+		boxSeparator = Colorf("[%s][bold]├─", color)
+		boxEnd       = Colorf("[%s][bold]└─", color)
 	)
 
 	var boxed strings.Builder
 
 	if len(title) > 0 {
-		title = Color(fmt.Sprintf("[%s][bold]%s", color, title))
+		title = Colorf("[%s][bold]%s", color, title)
 		boxed.WriteString(boxStart + " " + title + "\n" + boxLine + "\n")
 	} else {
 		boxed.WriteString(boxStart + "\n")
@@ -39,15 +38,15 @@ func BoxItems(title string, items []string, color string) string {
 func BoxSection(title, content, color string) string {
 
 	var (
-		boxStart = Color(fmt.Sprintf("[%s][bold]┌─", color))
-		boxLine  = Color(fmt.Sprintf("[%s][bold]│", color))
-		boxEnd   = Color(fmt.Sprintf("[%s][bold]└─", color))
+		boxStart = Colorf("[%s][bold]┌─", color)
+		boxLine  = Colorf("[%s][bold]│", color)
+		boxEnd   = Colorf("[%s][bold]└─", color)
 	)
 
 	var boxed strings.Builder
 
 	if len(title) > 0 {
-		title = Color(fmt.Sprintf("[%s][bold]%s", color, title))
+		title = Colorf("[%s][bold]%s", color, title)
 		boxed.WriteString(boxStart + " " + title + "\n" + boxLine + "\n")
 	} else {
 		boxed.WriteString(boxStart + "\n")

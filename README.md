@@ -17,7 +17,7 @@ Generate Terraform `moved` blocks automatically.
 - [Usage](#usage)
   - [Generating `moved` blocks](#generating-moved-blocks)
   - [Generating `terraform state mv` commands](#generating-terraform-state-mv-commands)
-  - [Understanding why a resource was not matched](#understanding-why-a-resource-was-not-matched)
+  - [Understanding why a resource was not moved](#understanding-why-a-resource-was-not-moved)
   - [Ignoring certain differences](#ignoring-certain-differences)
     - [The `everything` kind](#the-everything-kind)
     - [The `whitespace` kind](#the-whitespace-kind)
@@ -149,16 +149,17 @@ Or pipe them into a shell to run them immediately:
 tfautomv -output=commands | sh
 ```
 
-### Understanding why a resource was not matched
+### Understanding why a resource was not moved
 
 If you are not seeing `moved` blocks for a resource you expected to be matched,
-you can run `tfautomv` with the `-show-analysis` flag to get more information:
+you can run `tfautomv` with the `-explain` flag to get more information:
 
 ```bash
-tfautomv -show-analysis
+tfautomv -explain
 ```
 
-This will print a detailed analysis of why each resource was or was not matched.
+This will print a detailed explanation of why each resource was or was not
+matched.
 
 From there, you can choose to edit your code, write a `moved` block manually, or
 use the `-ignore` flag to ignore certain differences.
@@ -284,8 +285,8 @@ Join parent attributes with child attributes with a `.`:
 <KIND>:<RESOURCE TYPE>:parent_list.0
 ```
 
-If using the `-show-analysis` flag, you can see the full path to an attribute in
-the analysis output.
+If using the `-explain` flag, you can see the full path to an attribute in the
+explanation.
 
 ### Passing additional arguments to Terraform
 

@@ -79,10 +79,6 @@ func run() error {
 		os.Stderr.WriteString("\n" + pretty.Explain(moves, comparisons) + "\n")
 	}
 
-	if dryRun {
-		// TODO
-	}
-
 	terraformMoves := engineMovesToTerraformMoves(moves)
 
 	switch outputFormat {
@@ -115,7 +111,6 @@ func run() error {
 
 // Flags
 var (
-	dryRun       bool
 	ignoreRules  []string
 	noColor      bool
 	outputFormat string
@@ -125,7 +120,6 @@ var (
 )
 
 func parseFlags() {
-	flag.BoolVar(&dryRun, "dry-run", false, "print moves instead of writing them to disk")
 	flag.Var(stringSliceValue{&ignoreRules}, "ignore", "ignore differences based on a `rule`")
 	flag.BoolVar(&noColor, "no-color", false, "disable color in output")
 	flag.StringVar(&outputFormat, "output", "blocks", "output `format` of moves (\"blocks\" or \"commands\")")

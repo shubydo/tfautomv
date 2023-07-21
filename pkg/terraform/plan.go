@@ -12,7 +12,8 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 )
 
-// TODO: Document.
+// GetPlan obtains a Terraform plan from the module in the given working
+// directory. It does so by running a series of Terraform commands.
 func GetPlan(ctx context.Context, workdir string, opts ...PlanOption) (*tfjson.Plan, error) {
 	var settings planSettings
 
