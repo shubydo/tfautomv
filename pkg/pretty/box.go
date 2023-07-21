@@ -32,7 +32,7 @@ func BoxItems(title string, items []string, color string) string {
 
 	boxed.WriteString(boxEnd)
 
-	return boxed.String()
+	return Color(boxed.String())
 }
 
 func BoxSection(title, content, color string) string {
@@ -55,7 +55,7 @@ func BoxSection(title, content, color string) string {
 	boxed.WriteString(prefixLines(content, boxLine+" ") + "\n")
 	boxed.WriteString(boxEnd)
 
-	return boxed.String()
+	return Color(boxed.String())
 }
 
 func prefixLines(text string, prefix string) string {

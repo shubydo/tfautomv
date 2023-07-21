@@ -16,7 +16,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Stderr.WriteString(pretty.Error(err))
 		os.Exit(1)
 	}
 }
@@ -34,6 +34,11 @@ func run() error {
 	if printVersion {
 		fmt.Println(tfautomvVersion)
 		return nil
+	}
+
+	err := smokeTests()
+	if err != nil {
+		return err
 	}
 
 	modulePaths := flag.Args()
@@ -75,8 +80,12 @@ func run() error {
 	comparisons := engine.ComparePlans(plans, userRules)
 	moves := engine.DetermineMoves(comparisons)
 
-	if explain {
-		os.Stderr.WriteString("\n" + pretty.Explain(moves, comparisons) + "\n")
+	summarizer := pretty.NewSummarizer(moves, comparisons)
+	summary := summarizer.Summary(explain)
+	os.Stderr.WriteString("\n" + summary + "\n\n")
+
+	if len(moves) == 0 {
+		return nil
 	}
 
 	terraformMoves := engineMovesToTerraformMoves(moves)
@@ -97,11 +106,15 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("failed to write moved blocks: %w", err)
 		}
+
+		os.Stderr.WriteString(pretty.Colorf("\n%s written to [bold][green]%s[reset].\n", pretty.StyledNumMoves(len(moves)), movesFilePath))
 	case "commands":
 		err := terraform.WriteMoveCommands(os.Stdout, terraformMoves)
 		if err != nil {
 			return fmt.Errorf("failed to write move commands: %w", err)
 		}
+
+		os.Stderr.WriteString(pretty.Colorf("\n%s written to [bold][green]standard output[reset].\n", pretty.StyledNumMoves(len(moves))))
 	default:
 		return fmt.Errorf("unknown output format %q", outputFormat)
 	}
@@ -159,4 +172,11 @@ func engineMovesToTerraformMoves(moves []engine.Move) []terraform.Move {
 	}
 
 	return terraformMoves
+}
+
+func smokeTests() error {
+	if len(flag.Args()) > 1 && outputFormat == "blocks" {
+		return fmt.Errorf("blocks output format is not supported for multiple modules")
+	}
+	return nil
 }

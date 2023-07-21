@@ -143,7 +143,7 @@ func WriteMoveCommands(w io.Writer, moves []Move) error {
 
 	// And we're done.
 
-	_, err := fmt.Fprint(w, strings.Join(commands, "\n"))
+	_, err := fmt.Fprintln(w, strings.Join(commands, "\n"))
 
 	return err
 }
