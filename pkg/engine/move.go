@@ -20,15 +20,16 @@ type Move struct {
 
 func DetermineMoves(comparisons []ResourceComparison) []Move {
 
-	// We choose to move a resource planned for destruction to a resource
-	// planned for creation if and only if the resources match each other and
+	// We choose to move a resource planned for deletion to a resource planned
+	// for creation if and only if the resources match each other and
 	// only each other.
 
-	matchCountByResource := make(map[resourceKey]int)
+	matchCountResourcePlannedForCreation := make(map[string]int)
+	matchCountResourcePlannedForDeletion := make(map[string]int)
 	for _, comparison := range comparisons {
 		if comparison.IsMatch() {
-			matchCountByResource[comparison.PlannedForCreation.key()]++
-			matchCountByResource[comparison.PlannedForDeletion.key()]++
+			matchCountResourcePlannedForCreation[comparison.PlannedForCreation.ID()]++
+			matchCountResourcePlannedForDeletion[comparison.PlannedForDeletion.ID()]++
 		}
 	}
 
@@ -39,11 +40,11 @@ func DetermineMoves(comparisons []ResourceComparison) []Move {
 			continue
 		}
 
-		if matchCountByResource[comparison.PlannedForCreation.key()] != 1 {
+		if matchCountResourcePlannedForCreation[comparison.PlannedForCreation.ID()] != 1 {
 			continue
 		}
 
-		if matchCountByResource[comparison.PlannedForDeletion.key()] != 1 {
+		if matchCountResourcePlannedForDeletion[comparison.PlannedForDeletion.ID()] != 1 {
 			continue
 		}
 

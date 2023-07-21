@@ -10,6 +10,7 @@ import (
 
 	"github.com/busser/tfautomv/pkg/engine"
 	"github.com/busser/tfautomv/pkg/engine/rules"
+	"github.com/busser/tfautomv/pkg/pretty"
 	"github.com/busser/tfautomv/pkg/terraform"
 )
 
@@ -27,7 +28,7 @@ func run() error {
 	parseFlags()
 
 	if noColor {
-		// TODO
+		pretty.DisableColors()
 	}
 
 	if printVersion {
@@ -74,8 +75,8 @@ func run() error {
 	comparisons := engine.ComparePlans(plans, userRules)
 	moves := engine.DetermineMoves(comparisons)
 
-	if showAnalysis {
-		// TODO
+	if explain {
+		os.Stderr.WriteString("\n" + pretty.Explanation(moves, comparisons) + "\n")
 	}
 
 	if dryRun {
@@ -119,7 +120,7 @@ var (
 	noColor      bool
 	outputFormat string
 	printVersion bool
-	showAnalysis bool
+	explain      bool
 	terraformBin string
 )
 
@@ -128,7 +129,7 @@ func parseFlags() {
 	flag.Var(stringSliceValue{&ignoreRules}, "ignore", "ignore differences based on a `rule`")
 	flag.BoolVar(&noColor, "no-color", false, "disable color in output")
 	flag.StringVar(&outputFormat, "output", "blocks", "output `format` of moves (\"blocks\" or \"commands\")")
-	flag.BoolVar(&showAnalysis, "show-analysis", false, "show detailed analysis of Terraform plan")
+	flag.BoolVar(&explain, "explain", false, "explain why resources are moved or not moved")
 	flag.BoolVar(&printVersion, "version", false, "print version and exit")
 	flag.StringVar(&terraformBin, "terraform-bin", "terraform", "terraform binary to use")
 

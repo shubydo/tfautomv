@@ -1,6 +1,9 @@
 package engine
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // A Resource represents a Terraform resource. Whether Terraform plans
 // to create or delete the resource does not matter; the resource is modeled in
@@ -48,17 +51,11 @@ type Resource struct {
 	Attributes map[string]any
 }
 
-type resourceKey struct {
-	module  string
-	address string
-}
-
-// This can be used as a key in a map.
-func (r Resource) key() resourceKey {
-	return resourceKey{
-		module:  r.ModuleID,
-		address: r.Address,
-	}
+// A unique ID for the resource, for use as map keys. This ID is a concatenation
+// of the module ID and the resource's address. Whether the resource is planned
+// for creation or deletion is not taken into account.
+func (r Resource) ID() string {
+	return fmt.Sprintf("%s:%s", r.ModuleID, r.Address)
 }
 
 // A ResourceComparison represents a pair of Terraform resources of the same
