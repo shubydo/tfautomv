@@ -7,9 +7,9 @@ import (
 	"github.com/busser/tfautomv/pkg/engine"
 )
 
-// Explanation returns a human-readable explanation of the tfautomv engine's
+// Explain returns a human-readable explanation of the tfautomv engine's
 // decisions to move or not move resources.
-func Explanation(moves []engine.Move, comparisons []engine.ResourceComparison) string {
+func Explain(moves []engine.Move, comparisons []engine.ResourceComparison) string {
 	e := newExplainer(moves, comparisons)
 
 	return e.explanation()

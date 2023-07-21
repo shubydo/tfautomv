@@ -76,7 +76,7 @@ func run() error {
 	moves := engine.DetermineMoves(comparisons)
 
 	if explain {
-		os.Stderr.WriteString("\n" + pretty.Explanation(moves, comparisons) + "\n")
+		os.Stderr.WriteString("\n" + pretty.Explain(moves, comparisons) + "\n")
 	}
 
 	if dryRun {
