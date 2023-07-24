@@ -5,7 +5,6 @@ package e2e_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -13,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-exec/tfexec"
 	tfjson "github.com/hashicorp/terraform-json"
 
@@ -85,112 +83,87 @@ func TestE2E(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			originalWorkdir := filepath.Join(tt.workdir, "original-code")
+			refactoredWorkdir := filepath.Join(tt.workdir, "refactored-code")
 
-			for _, outputFormat := range []string{"blocks", "commands"} {
-				t.Run(outputFormat, func(t *testing.T) {
+			terraformBin := "terraform"
+			for _, a := range tt.args {
+				if strings.HasPrefix(a, "--terraform-bin=") {
+					terraformBin = strings.TrimPrefix(a, "--terraform-bin=")
+				}
+			}
 
-					originalWorkdir := filepath.Join(tt.workdir, "original-code")
-					refactoredWorkdir := filepath.Join(tt.workdir, "refactored-code")
+			/*
+				Skip tests that serve as documentation of known limitations or
+				use features incompatible with the Terraform CLI's version.
+			*/
 
-					terraformBin := "terraform"
-					for _, a := range tt.args {
-						if strings.HasPrefix(a, "--terraform-bin=") {
-							terraformBin = strings.TrimPrefix(a, "--terraform-bin=")
-						}
-					}
+			if tt.skip {
+				t.Skip(tt.skipReason)
+			}
 
-					/*
-						Skip tests that serve as documentation of known limitations or
-						use features incompatible with the Terraform CLI's version.
-					*/
+			/*
+				Create a fresh environment for each test.
+			*/
 
-					if tt.skip {
-						t.Skip(tt.skipReason)
-					}
+			setupWorkdir(t, originalWorkdir, refactoredWorkdir, terraformBin)
 
-					if outputFormat == "blocks" {
-						tf, err := tfexec.NewTerraform(originalWorkdir, terraformBin)
-						if err != nil {
-							t.Fatal(err)
-						}
-						tfVer, _, err := tf.Version(context.TODO(), false)
-						if err != nil {
-							t.Fatalf("failed to get terraform version: %v", err)
-						}
+			/*
+				Run tfautomv to generate `moved` blocks or `terraform state mv` commands.
+			*/
 
-						if tfVer.LessThan(version.Must(version.NewVersion("1.1"))) {
-							t.Skip("terraform moves output format is only supported in terraform 1.1 and above")
-						}
-					}
+			tfautomvCmd := exec.Command(binPath, tt.args...)
+			tfautomvCmd.Dir = refactoredWorkdir
 
-					/*
-						Create a fresh environment for each test.
-					*/
+			var tfautomvStdout bytes.Buffer
+			var tfautomvCompleteOutput bytes.Buffer
+			tfautomvCmd.Stdout = io.MultiWriter(&tfautomvStdout, &tfautomvCompleteOutput, os.Stderr)
+			tfautomvCmd.Stderr = io.MultiWriter(&tfautomvCompleteOutput, os.Stderr)
 
-					setupWorkdir(t, originalWorkdir, refactoredWorkdir, terraformBin)
+			if err := tfautomvCmd.Run(); err != nil {
+				t.Fatalf("running tfautomv: %v", err)
+			}
 
-					args := append(tt.args, fmt.Sprintf("--output=%s", outputFormat))
+			/*
+				If tfautomv outputs commands, run them.
+			*/
 
-					/*
-						Run tfautomv to generate `moved` blocks or `terraform state mv` commands.
-					*/
+			cmd := exec.Command("/bin/sh")
+			cmd.Dir = refactoredWorkdir
 
-					tfautomvCmd := exec.Command(binPath, args...)
-					tfautomvCmd.Dir = refactoredWorkdir
+			cmd.Stdin = &tfautomvStdout
+			cmd.Stdout = os.Stderr
+			cmd.Stderr = os.Stderr
 
-					var tfautomvStdout bytes.Buffer
-					var tfautomvCompleteOutput bytes.Buffer
-					tfautomvCmd.Stdout = io.MultiWriter(&tfautomvStdout, &tfautomvCompleteOutput, os.Stderr)
-					tfautomvCmd.Stderr = io.MultiWriter(&tfautomvCompleteOutput, os.Stderr)
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("running terraform state mv commands: %v", err)
+			}
 
-					if err := tfautomvCmd.Run(); err != nil {
-						t.Fatalf("running tfautomv: %v", err)
-					}
+			/*
+				Count how many changes remain in Terraform's plan.
+			*/
 
-					/*
-						If using `terraform state mv` commands, run them.
-					*/
+			tf, err := tfexec.NewTerraform(refactoredWorkdir, terraformBin)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-					if outputFormat == "commands" {
-						cmd := exec.Command("/bin/sh")
-						cmd.Dir = refactoredWorkdir
+			planFile, err := os.CreateTemp("", "tfautomv.*.plan")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Remove(planFile.Name())
+			if _, err := tf.Plan(context.TODO(), tfexec.Out(planFile.Name())); err != nil {
+				t.Fatalf("terraform plan (after addings moves): %v", err)
+			}
+			plan, err := tf.ShowPlanFile(context.TODO(), planFile.Name())
+			if err != nil {
+				t.Fatalf("terraform show (after addings moves): %v", err)
+			}
 
-						cmd.Stdin = &tfautomvStdout
-						cmd.Stdout = os.Stderr
-						cmd.Stderr = os.Stderr
-
-						if err := cmd.Run(); err != nil {
-							t.Fatalf("running terraform state mv commands: %v", err)
-						}
-					}
-
-					/*
-						Count how many changes remain in Terraform's plan.
-					*/
-
-					tf, err := tfexec.NewTerraform(refactoredWorkdir, terraformBin)
-					if err != nil {
-						t.Fatal(err)
-					}
-
-					planFile, err := os.CreateTemp("", "tfautomv.*.plan")
-					if err != nil {
-						t.Fatal(err)
-					}
-					defer os.Remove(planFile.Name())
-					if _, err := tf.Plan(context.TODO(), tfexec.Out(planFile.Name())); err != nil {
-						t.Fatalf("terraform plan (after addings moves): %v", err)
-					}
-					plan, err := tf.ShowPlanFile(context.TODO(), planFile.Name())
-					if err != nil {
-						t.Fatalf("terraform show (after addings moves): %v", err)
-					}
-
-					changes := numChanges(plan)
-					if changes != tt.wantChanges {
-						t.Errorf("%d changes remaining, want %d", changes, tt.wantChanges)
-					}
-				})
+			changes := numChanges(plan)
+			if changes != tt.wantChanges {
+				t.Errorf("%d changes remaining, want %d", changes, tt.wantChanges)
 			}
 		})
 	}

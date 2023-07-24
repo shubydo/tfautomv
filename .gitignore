@@ -11,7 +11,7 @@ bin/
 dist/
 
 # Test artifacts
-internal/e2e/testdata/**/moves.tf
+pkg/e2e/testdata/**/moves.tf
 
 # Local direnv configuration
 .envrc
