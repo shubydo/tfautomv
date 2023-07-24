@@ -60,7 +60,7 @@ func TestE2E(t *testing.T) {
 			name:    "ignore different attributes",
 			workdir: filepath.Join("testdata", "different-attributes"),
 			args: []string{
-				"-ignore=everything:random_pet:length",
+				"--ignore=everything:random_pet:length",
 			},
 			wantChanges: 1,
 		},
@@ -75,7 +75,7 @@ func TestE2E(t *testing.T) {
 			name:    "terragrunt",
 			workdir: filepath.Join("testdata", "terragrunt"),
 			args: []string{
-				"-terraform-bin=terragrunt",
+				"--terraform-bin=terragrunt",
 			},
 			wantChanges: 0,
 		},
@@ -94,8 +94,8 @@ func TestE2E(t *testing.T) {
 
 					terraformBin := "terraform"
 					for _, a := range tt.args {
-						if strings.HasPrefix(a, "-terraform-bin=") {
-							terraformBin = strings.TrimPrefix(a, "-terraform-bin=")
+						if strings.HasPrefix(a, "--terraform-bin=") {
+							terraformBin = strings.TrimPrefix(a, "--terraform-bin=")
 						}
 					}
 
@@ -129,7 +129,7 @@ func TestE2E(t *testing.T) {
 
 					setupWorkdir(t, originalWorkdir, refactoredWorkdir, terraformBin)
 
-					args := append(tt.args, fmt.Sprintf("-output=%s", outputFormat))
+					args := append(tt.args, fmt.Sprintf("--output=%s", outputFormat))
 
 					/*
 						Run tfautomv to generate `moved` blocks or `terraform state mv` commands.

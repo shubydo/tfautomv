@@ -110,7 +110,7 @@ func WithTerraformBin(path string) PlanOption {
 // module was not initialized before using the Planner.
 func WithSkipInit(skipInit bool) PlanOption {
 	return func(s *planSettings) {
-		s.skipInit = true
+		s.skipInit = skipInit
 	}
 }
 
@@ -122,7 +122,7 @@ func WithSkipInit(skipInit bool) PlanOption {
 // its plan on stale data.
 func WithSkipRefresh(skipRefresh bool) PlanOption {
 	return func(s *planSettings) {
-		s.skipRefresh = true
+		s.skipRefresh = skipRefresh
 	}
 }
 
