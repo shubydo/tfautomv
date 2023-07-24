@@ -130,7 +130,8 @@ func run() error {
 
 	os.Stderr.WriteString("\n" + summary + "\n\n")
 
-	/* Step 5: Write the moves found by the engine.
+	/*
+	 * Step 5: Write the moves found by the engine.
 	 *
 	 * Depending on the output format chosen by the user, we either write
 	 * the moves to a file, print them to standard output, or a combination
@@ -191,7 +192,7 @@ func parseFlags() {
 	flag.BoolVarP(&skipInit, "skip-init", "s", false, "skip running terraform init")
 	flag.BoolVarP(&skipRefresh, "skip-refresh", "S", false, "skip running terraform refresh")
 	flag.StringVar(&terraformBin, "terraform-bin", "terraform", "terraform binary to use")
-	flag.CountVarP(&verbosity, "verbose", "v", "increase verbosity (can be specified multiple times)")
+	flag.CountVarP(&verbosity, "verbosity", "v", "increase verbosity (can be specified multiple times)")
 
 	flag.Parse()
 }
