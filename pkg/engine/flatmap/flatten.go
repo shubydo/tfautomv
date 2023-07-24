@@ -67,7 +67,10 @@ func flattenMap(result map[string]interface{}, prefix string, v reflect.Value) e
 			return fmt.Errorf("%s: map key is not string: %s", prefix, k)
 		}
 
-		flatten(result, fmt.Sprintf("%s.%s", prefix, k.String()), v.MapIndex(k))
+		err := flatten(result, fmt.Sprintf("%s.%s", prefix, k.String()), v.MapIndex(k))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -78,7 +81,10 @@ func flattenSlice(result map[string]interface{}, prefix string, v reflect.Value)
 
 	result[prefix+"#"] = v.Len()
 	for i := 0; i < v.Len(); i++ {
-		flatten(result, fmt.Sprintf("%s%d", prefix, i), v.Index(i))
+		err := flatten(result, fmt.Sprintf("%s%d", prefix, i), v.Index(i))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
