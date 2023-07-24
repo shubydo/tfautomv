@@ -150,6 +150,23 @@ func TestWriteMoveCommands(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "multiple moves between different workdirs",
+			moves: []Move{
+				{
+					FromWorkdir: "/path/to/workdir1",
+					ToWorkdir:   "/path/to/workdir2",
+					FromAddress: "aws_instance.foo",
+					ToAddress:   "aws_instance.bar",
+				},
+				{
+					FromWorkdir: "/path/to/workdir3",
+					ToWorkdir:   "/path/to/workdir4",
+					FromAddress: "aws_instance.baz",
+					ToAddress:   "aws_instance.qux",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

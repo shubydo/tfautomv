@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 )
 
 // A Move represents a an object in Terraform's state that should be moved to
@@ -80,7 +79,7 @@ func WriteMoveCommands(w io.Writer, moves []Move) error {
 		if m.FromWorkdir == m.ToWorkdir {
 			var chdirFlag string
 			if m.FromWorkdir != "." {
-				chdirFlag = fmt.Sprintf("-chdir=%q ", m.FromWorkdir)
+				chdirFlag = fmt.Sprintf("-chdir=%q", m.FromWorkdir)
 			}
 
 			commands = append(commands,
@@ -102,16 +101,12 @@ func WriteMoveCommands(w io.Writer, moves []Move) error {
 	workdirs = unique(workdirs)
 	sort.Strings(workdirs)
 
-	const localCopyFileName = "tfautomv-local-copy.tfstate"
-	backupFileName := fmt.Sprintf("tfautomv-backup-%d.tfstate", time.Now().Unix())
+	const localCopyFileName = ".tfautomv/local-copy.tfstate"
 
 	for _, module := range workdirs {
 		commands = append(commands,
 			fmt.Sprintf("terraform -chdir=%q state pull > %q",
 				module, filepath.Join(module, localCopyFileName)),
-			fmt.Sprintf("cp %q %q",
-				filepath.Join(module, localCopyFileName),
-				filepath.Join(module, backupFileName)),
 		)
 	}
 
