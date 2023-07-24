@@ -48,9 +48,22 @@ func run() error {
 	 * Detect any obvious issues with the user's configuration.
 	 */
 
-	err := smokeTests(ctx)
+	if outputFormat != "auto" && outputFormat != "blocks" && outputFormat != "commands" {
+		return fmt.Errorf("unknown output format %q", outputFormat)
+	}
+
+	if outputFormat == "blocks" && len(flag.Args()) > 1 {
+		return fmt.Errorf("blocks output format is not supported for multiple modules")
+	}
+
+	tfVersion, err := terraform.GetVersion(ctx, terraform.WithTerraformBin(terraformBin))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get Terraform version: %w", err)
+	}
+
+	movedBlocksSupported := tfVersion.GreaterThanOrEqual(version.Must(version.NewSemver("1.1.0")))
+	if outputFormat == "blocks" && !movedBlocksSupported {
+		return fmt.Errorf("Terraform version %s does not support moved blocks", tfVersion)
 	}
 
 	/*
@@ -129,11 +142,18 @@ func run() error {
 
 	switch outputFormat {
 	case "auto":
-		if err := writeMovedBlocks(sameModule); err != nil {
-			return err
-		}
-		if err := writeMoveCommands(differentModule); err != nil {
-			return err
+		switch {
+		case movedBlocksSupported:
+			if err := writeMovedBlocks(sameModule); err != nil {
+				return err
+			}
+			if err := writeMoveCommands(differentModule); err != nil {
+				return err
+			}
+		case !movedBlocksSupported:
+			if err := writeMoveCommands(terraformMoves); err != nil {
+				return err
+			}
 		}
 	case "blocks":
 		if err := writeMovedBlocks(sameModule); err != nil {
@@ -189,29 +209,6 @@ func engineMovesToTerraformMoves(moves []engine.Move) []terraform.Move {
 	}
 
 	return terraformMoves
-}
-
-func smokeTests(ctx context.Context) error {
-	if outputFormat != "auto" && outputFormat != "blocks" && outputFormat != "commands" {
-		return fmt.Errorf("unknown output format %q", outputFormat)
-	}
-
-	if outputFormat == "blocks" {
-		if len(flag.Args()) > 1 {
-			return fmt.Errorf("blocks output format is not supported for multiple modules")
-		}
-
-		tfVersion, err := terraform.GetVersion(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get Terraform version: %w", err)
-		}
-
-		if tfVersion.LessThan(version.Must(version.NewSemver("1.1.0"))) {
-			return fmt.Errorf("Terraform version %s does not support moved blocks", tfVersion)
-		}
-	}
-
-	return nil
 }
 
 func getPlans(ctx context.Context, workdirs []string, options []terraform.Option) ([]engine.Plan, error) {

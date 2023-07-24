@@ -135,8 +135,18 @@ tfautomv ./production
 
 ### Generating `terraform state mv` commands
 
-If you are using a version of Terraform older than v1.1 or don't want to use
-`moved` blocks, you can generate `terraform state mv` commands instead:
+By default, tfautomv writes moves to as `moved` blocks when possible and falls
+back to `terraform state mv` commands when not.
+
+You can force `tfautomv` to write only `moved` blocks with the `--output=moves`
+flag:
+
+```bash
+tfautomv --output=moves
+```
+
+You can force `tfautomv` to write only `terraform state mv` commands with the
+`--output=commands` flag:
 
 ```bash
 tfautomv --output=commands
