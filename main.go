@@ -55,6 +55,7 @@ func run() error {
 		terraform.WithSkipRefresh(skipRefresh),
 	}
 
+	// TODO: suppress output when --quiet is set.
 	plans, err := getPlans(context.TODO(), modulePaths, planOptions)
 	if err != nil {
 		return err
