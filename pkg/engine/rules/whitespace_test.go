@@ -10,7 +10,7 @@ func TestWhitespaceRuleAppliesTo(t *testing.T) {
 		},
 	}
 
-	tt := []struct {
+	tests := []struct {
 		resourceType string
 		attribute    string
 		want         bool
@@ -37,10 +37,10 @@ func TestWhitespaceRuleAppliesTo(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
-		actual := rule.AppliesTo(tc.resourceType, tc.attribute)
-		if actual != tc.want {
-			t.Errorf("AppliesTo(%q, %q) = %t, want %t", tc.resourceType, tc.attribute, actual, tc.want)
+	for _, tt := range tests {
+		actual := rule.AppliesTo(tt.resourceType, tt.attribute)
+		if actual != tt.want {
+			t.Errorf("AppliesTo(%q, %q) = %t, want %t", tt.resourceType, tt.attribute, actual, tt.want)
 		}
 	}
 }
@@ -53,7 +53,7 @@ func TestWhitespaceRuleEquates(t *testing.T) {
 		},
 	}
 
-	tt := []struct {
+	tests := []struct {
 		valueA interface{}
 		valueB interface{}
 		want   bool
@@ -95,16 +95,16 @@ func TestWhitespaceRuleEquates(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
-		actual := rule.Equates(tc.valueA, tc.valueB)
-		if actual != tc.want {
-			t.Errorf("Equates(%q, %q) = %t, want %t", tc.valueA, tc.valueB, actual, tc.want)
+	for _, tt := range tests {
+		actual := rule.Equates(tt.valueA, tt.valueB)
+		if actual != tt.want {
+			t.Errorf("Equates(%q, %q) = %t, want %t", tt.valueA, tt.valueB, actual, tt.want)
 		}
 	}
 }
 
 func TestWithoutWhitespace(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		str  string
 		want string
 	}{
@@ -114,10 +114,10 @@ func TestWithoutWhitespace(t *testing.T) {
 		{"\t foo\tbar\n", "foobar"},
 	}
 
-	for _, tc := range tt {
-		actual := withoutWhitespace(tc.str)
-		if actual != tc.want {
-			t.Errorf("withoutWhitespace(%q) = %q, want %q", tc.str, actual, tc.want)
+	for _, tt := range tests {
+		actual := withoutWhitespace(tt.str)
+		if actual != tt.want {
+			t.Errorf("withoutWhitespace(%q) = %q, want %q", tt.str, actual, tt.want)
 		}
 	}
 }

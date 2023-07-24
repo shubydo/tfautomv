@@ -24,7 +24,7 @@ import (
 const colorEscapeSequence = "\x1b"
 
 func TestE2E(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		name    string
 		workdir string
 		args    []string
@@ -83,17 +83,17 @@ func TestE2E(t *testing.T) {
 
 	binPath := buildBinary(t)
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
 			for _, outputFormat := range []string{"blocks", "commands"} {
 				t.Run(outputFormat, func(t *testing.T) {
 
-					originalWorkdir := filepath.Join(tc.workdir, "original-code")
-					refactoredWorkdir := filepath.Join(tc.workdir, "refactored-code")
+					originalWorkdir := filepath.Join(tt.workdir, "original-code")
+					refactoredWorkdir := filepath.Join(tt.workdir, "refactored-code")
 
 					terraformBin := "terraform"
-					for _, a := range tc.args {
+					for _, a := range tt.args {
 						if strings.HasPrefix(a, "-terraform-bin=") {
 							terraformBin = strings.TrimPrefix(a, "-terraform-bin=")
 						}
@@ -104,8 +104,8 @@ func TestE2E(t *testing.T) {
 						use features incompatible with the Terraform CLI's version.
 					*/
 
-					if tc.skip {
-						t.Skip(tc.skipReason)
+					if tt.skip {
+						t.Skip(tt.skipReason)
 					}
 
 					if outputFormat == "blocks" {
@@ -129,7 +129,7 @@ func TestE2E(t *testing.T) {
 
 					setupWorkdir(t, originalWorkdir, refactoredWorkdir, terraformBin)
 
-					args := append(tc.args, fmt.Sprintf("-output=%s", outputFormat))
+					args := append(tt.args, fmt.Sprintf("-output=%s", outputFormat))
 
 					/*
 						Run tfautomv to generate `moved` blocks or `terraform state mv` commands.
@@ -187,8 +187,8 @@ func TestE2E(t *testing.T) {
 					}
 
 					changes := numChanges(plan)
-					if changes != tc.wantChanges {
-						t.Errorf("%d changes remaining, want %d", changes, tc.wantChanges)
+					if changes != tt.wantChanges {
+						t.Errorf("%d changes remaining, want %d", changes, tt.wantChanges)
 					}
 				})
 			}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseRule(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		s       string
 		want    engine.Rule
 		wantErr bool
@@ -62,26 +62,26 @@ func TestParseRule(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
-		t.Run(tc.s, func(t *testing.T) {
-			actual, err := Parse(tc.s)
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			actual, err := Parse(tt.s)
 
-			if err != nil && !tc.wantErr {
+			if err != nil && !tt.wantErr {
 				t.Errorf("unexpected error: %v", err)
 			}
-			if err == nil && tc.wantErr {
+			if err == nil && tt.wantErr {
 				t.Errorf("expected error, got none")
 			}
-			if tc.wantErr {
+			if tt.wantErr {
 				return
 			}
 
-			if !reflect.DeepEqual(actual, tc.want) {
-				t.Errorf("ParseRule() mismatch:\ngot: %#v\nwant: %#v", actual, tc.want)
+			if !reflect.DeepEqual(actual, tt.want) {
+				t.Errorf("ParseRule() mismatch:\ngot: %#v\nwant: %#v", actual, tt.want)
 			}
 
-			if s := actual.String(); s != tc.s {
-				t.Errorf("String() = %q, want %q", s, tc.s)
+			if s := actual.String(); s != tt.s {
+				t.Errorf("String() = %q, want %q", s, tt.s)
 			}
 		})
 	}

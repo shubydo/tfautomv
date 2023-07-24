@@ -9,7 +9,7 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		name string
 		obj  map[string]interface{}
 		want map[string]interface{}
@@ -105,13 +105,13 @@ func TestToString(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := flatmap.Flatten(tc.obj)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := flatmap.Flatten(tt.obj)
 			if err != nil {
 				t.Fatalf("ToString() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("ToString() mismatch (-want +got):\n%s", diff)
 			}
 		})

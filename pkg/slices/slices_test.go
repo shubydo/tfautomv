@@ -5,7 +5,7 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		s    []int
 		v    int
 		want int
@@ -19,17 +19,17 @@ func TestIndex(t *testing.T) {
 		{[]int{}, 123, -1},
 	}
 
-	for _, tc := range tt {
-		actual := Index(tc.s, tc.v)
-		if actual != tc.want {
+	for _, tt := range tests {
+		actual := Index(tt.s, tt.v)
+		if actual != tt.want {
 			t.Errorf("Index(%#v, %#v) = %#v, want %#v",
-				tc.s, tc.s, actual, tc.want)
+				tt.s, tt.s, actual, tt.want)
 		}
 	}
 }
 
 func TestContains(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		s    []int
 		v    int
 		want bool
@@ -43,17 +43,17 @@ func TestContains(t *testing.T) {
 		{[]int{}, 123, false},
 	}
 
-	for _, tc := range tt {
-		actual := Contains(tc.s, tc.v)
-		if actual != tc.want {
+	for _, tt := range tests {
+		actual := Contains(tt.s, tt.v)
+		if actual != tt.want {
 			t.Errorf("Contains(%#v, %#v) = %#v, want %#v",
-				tc.s, tc.s, actual, tc.want)
+				tt.s, tt.s, actual, tt.want)
 		}
 	}
 }
 
 func TestEqual(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		a, b []int
 		want bool
 	}{
@@ -67,18 +67,18 @@ func TestEqual(t *testing.T) {
 		{[]int{}, []int{}, true},
 	}
 
-	for _, tc := range tt {
-		actual := Equal(tc.a, tc.b)
-		if actual != tc.want {
+	for _, tt := range tests {
+		actual := Equal(tt.a, tt.b)
+		if actual != tt.want {
 			t.Errorf("Equal(%#v, %#v) = %#v, want %#v",
-				tc.a, tc.b, actual, tc.want)
+				tt.a, tt.b, actual, tt.want)
 		}
 
 		// Equality is symetric.
-		actual = Equal(tc.b, tc.a)
-		if actual != tc.want {
+		actual = Equal(tt.b, tt.a)
+		if actual != tt.want {
 			t.Errorf("Equal(%#v, %#v) = %#v, want %#v",
-				tc.b, tc.a, actual, tc.want)
+				tt.b, tt.a, actual, tt.want)
 		}
 	}
 }

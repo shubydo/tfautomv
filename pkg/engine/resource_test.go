@@ -83,8 +83,8 @@ func TestCompareResources(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			want := engine.ResourceComparison{
-				PlannedForCreation:    tt.create,
-				PlannedForDeletion:    tt.delete,
+				ToCreate:              tt.create,
+				ToDelete:              tt.delete,
 				MatchingAttributes:    tt.wantMatching,
 				MismatchingAttributes: tt.wantMismatching,
 				IgnoredAttributes:     tt.wantIgnored,

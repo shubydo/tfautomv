@@ -75,10 +75,10 @@ func (r Resource) ID() string {
 // mismatching.
 type ResourceComparison struct {
 	// The resource Terraform plans to create.
-	PlannedForCreation Resource
+	ToCreate Resource
 
 	// The resource Terraform plans to delete.
-	PlannedForDeletion Resource
+	ToDelete Resource
 
 	// Keys of attributes that have the same value in both resources.
 	MatchingAttributes []string
@@ -142,8 +142,8 @@ func CompareResources(create, delete Resource, rules []Rule) ResourceComparison 
 	sort.Strings(ignored)
 
 	return ResourceComparison{
-		PlannedForCreation:    create,
-		PlannedForDeletion:    delete,
+		ToCreate:              create,
+		ToDelete:              delete,
 		MatchingAttributes:    matching,
 		MismatchingAttributes: mismatching,
 		IgnoredAttributes:     ignored,

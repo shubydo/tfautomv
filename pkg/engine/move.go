@@ -24,12 +24,12 @@ func DetermineMoves(comparisons []ResourceComparison) []Move {
 	// for creation if and only if the resources match each other and
 	// only each other.
 
-	matchCountResourcePlannedForCreation := make(map[string]int)
-	matchCountResourcePlannedForDeletion := make(map[string]int)
+	planToCreateMatchCount := make(map[string]int)
+	planToDeleteMatchCount := make(map[string]int)
 	for _, comparison := range comparisons {
 		if comparison.IsMatch() {
-			matchCountResourcePlannedForCreation[comparison.PlannedForCreation.ID()]++
-			matchCountResourcePlannedForDeletion[comparison.PlannedForDeletion.ID()]++
+			planToCreateMatchCount[comparison.ToCreate.ID()]++
+			planToDeleteMatchCount[comparison.ToDelete.ID()]++
 		}
 	}
 
@@ -40,19 +40,19 @@ func DetermineMoves(comparisons []ResourceComparison) []Move {
 			continue
 		}
 
-		if matchCountResourcePlannedForCreation[comparison.PlannedForCreation.ID()] != 1 {
+		if planToCreateMatchCount[comparison.ToCreate.ID()] != 1 {
 			continue
 		}
 
-		if matchCountResourcePlannedForDeletion[comparison.PlannedForDeletion.ID()] != 1 {
+		if planToDeleteMatchCount[comparison.ToDelete.ID()] != 1 {
 			continue
 		}
 
 		m := Move{
-			SourceModule:       comparison.PlannedForDeletion.ModuleID,
-			SourceAddress:      comparison.PlannedForDeletion.Address,
-			DestinationModule:  comparison.PlannedForCreation.ModuleID,
-			DestinationAddress: comparison.PlannedForCreation.Address,
+			SourceModule:       comparison.ToDelete.ModuleID,
+			SourceAddress:      comparison.ToDelete.Address,
+			DestinationModule:  comparison.ToCreate.ModuleID,
+			DestinationAddress: comparison.ToCreate.Address,
 		}
 		moves = append(moves, m)
 	}

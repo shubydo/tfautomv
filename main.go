@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	_ "embed"
-	"flag"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/busser/tfautomv/pkg/engine"
 	"github.com/busser/tfautomv/pkg/engine/rules"
@@ -16,7 +19,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		os.Stderr.WriteString(pretty.Error(err))
+		os.Stderr.WriteString(pretty.Error(err) + "\n")
 		os.Exit(1)
 	}
 }
@@ -46,25 +49,15 @@ func run() error {
 		modulePaths = []string{"."}
 	}
 
-	ctx := context.TODO()
-
 	planOptions := []terraform.PlanOption{
 		terraform.WithTerraformBin(terraformBin),
+		terraform.WithSkipInit(skipInit),
+		terraform.WithSkipRefresh(skipRefresh),
 	}
 
-	var plans []engine.Plan
-	for _, modulePath := range modulePaths {
-		jsonPlan, err := terraform.GetPlan(ctx, modulePath, planOptions...)
-		if err != nil {
-			return fmt.Errorf("failed to get plan for module %q: %w", modulePath, err)
-		}
-
-		plan, err := engine.SummarizeJSONPlan(modulePath, jsonPlan)
-		if err != nil {
-			return fmt.Errorf("failed to summarize plan for module %q: %w", modulePath, err)
-		}
-
-		plans = append(plans, plan)
+	plans, err := getPlans(context.TODO(), modulePaths, planOptions)
+	if err != nil {
+		return err
 	}
 
 	var userRules []engine.Rule
@@ -77,12 +70,14 @@ func run() error {
 		userRules = append(userRules, rule)
 	}
 
-	comparisons := engine.ComparePlans(plans, userRules)
+	comparisons := engine.CompareAll(engine.MergePlans(plans), userRules)
 	moves := engine.DetermineMoves(comparisons)
 
-	summarizer := pretty.NewSummarizer(moves, comparisons)
-	summary := summarizer.Summary(explain)
-	os.Stderr.WriteString("\n" + summary + "\n\n")
+	if !quiet {
+		summarizer := pretty.NewSummarizer(moves, comparisons, verbosity)
+		summary := summarizer.Summary()
+		os.Stderr.WriteString("\n" + summary + "\n\n")
+	}
 
 	if len(moves) == 0 {
 		return nil
@@ -107,14 +102,20 @@ func run() error {
 			return fmt.Errorf("failed to write moved blocks: %w", err)
 		}
 
-		os.Stderr.WriteString(pretty.Colorf("\n%s written to [bold][green]%s[reset].\n", pretty.StyledNumMoves(len(moves)), movesFilePath))
+		if !quiet {
+			os.Stderr.WriteString(pretty.Colorf("%s written to [bold][green]%s", pretty.StyledNumMoves(len(moves)), movesFilePath))
+			os.Stderr.WriteString("\n")
+		}
 	case "commands":
 		err := terraform.WriteMoveCommands(os.Stdout, terraformMoves)
 		if err != nil {
 			return fmt.Errorf("failed to write move commands: %w", err)
 		}
 
-		os.Stderr.WriteString(pretty.Colorf("\n%s written to [bold][green]standard output[reset].\n", pretty.StyledNumMoves(len(moves))))
+		if !quiet {
+			os.Stderr.WriteString(pretty.Colorf("%s written to [bold][green]standard output", pretty.StyledNumMoves(len(moves))))
+			os.Stderr.WriteString("\n")
+		}
 	default:
 		return fmt.Errorf("unknown output format %q", outputFormat)
 	}
@@ -128,35 +129,25 @@ var (
 	noColor      bool
 	outputFormat string
 	printVersion bool
-	explain      bool
+	quiet        bool
+	skipInit     bool
+	skipRefresh  bool
 	terraformBin string
+	verbosity    int
 )
 
 func parseFlags() {
-	flag.Var(stringSliceValue{&ignoreRules}, "ignore", "ignore differences based on a `rule`")
+	flag.StringSliceVar(&ignoreRules, "ignore", nil, "ignore differences based on a `rule`")
 	flag.BoolVar(&noColor, "no-color", false, "disable color in output")
-	flag.StringVar(&outputFormat, "output", "blocks", "output `format` of moves (\"blocks\" or \"commands\")")
-	flag.BoolVar(&explain, "explain", false, "explain why resources are moved or not moved")
-	flag.BoolVar(&printVersion, "version", false, "print version and exit")
+	flag.StringVarP(&outputFormat, "output", "o", "blocks", "output `format` of moves (\"blocks\" or \"commands\")")
+	flag.BoolVarP(&printVersion, "version", "V", false, "print version and exit")
+	flag.BoolVarP(&quiet, "quiet", "q", false, "suppress all human-readable output")
+	flag.BoolVarP(&skipInit, "skip-init", "s", false, "skip running terraform init")
+	flag.BoolVarP(&skipRefresh, "skip-refresh", "S", false, "skip running terraform refresh")
 	flag.StringVar(&terraformBin, "terraform-bin", "terraform", "terraform binary to use")
+	flag.CountVarP(&verbosity, "verbose", "v", "increase verbosity (can be specified multiple times)")
 
 	flag.Parse()
-}
-
-type stringSliceValue struct {
-	s *[]string
-}
-
-func (v stringSliceValue) String() string {
-	if v.s == nil || *v.s == nil {
-		return ""
-	}
-	return fmt.Sprintf("%q", *v.s)
-}
-
-func (v stringSliceValue) Set(raw string) error {
-	*v.s = append(*v.s, raw)
-	return nil
 }
 
 func engineMovesToTerraformMoves(moves []engine.Move) []terraform.Move {
@@ -179,4 +170,56 @@ func smokeTests() error {
 		return fmt.Errorf("blocks output format is not supported for multiple modules")
 	}
 	return nil
+}
+
+func getPlans(ctx context.Context, workdirs []string, options []terraform.PlanOption) ([]engine.Plan, error) {
+	type result struct {
+		plan engine.Plan
+		err  error
+	}
+	results := make([]result, len(workdirs))
+
+	getPlan := func(i int) {
+		jsonPlan, err := terraform.GetPlan(ctx, workdirs[i], options...)
+		if err != nil {
+			results[i].err = fmt.Errorf("failed to get plan for workdir %q: %w", workdirs[i], err)
+			return
+		}
+
+		plan, err := engine.SummarizeJSONPlan(workdirs[i], jsonPlan)
+		if err != nil {
+			results[i].err = fmt.Errorf("failed to summarize plan for workdir %q: %w", workdirs[i], err)
+			return
+		}
+
+		results[i].plan = plan
+	}
+
+	var wg sync.WaitGroup
+	for i := range workdirs {
+		wg.Add(1)
+		go func(i int) {
+			getPlan(i)
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+
+	var errs []error
+	for _, r := range results {
+		if r.err != nil {
+			errs = append(errs, r.err)
+		}
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	var plans []engine.Plan
+	for _, r := range results {
+		plans = append(plans, r.plan)
+	}
+
+	return plans, nil
 }

@@ -47,7 +47,7 @@ func BoxSection(title, content, color string) string {
 
 	if len(title) > 0 {
 		title = Colorf("[%s][bold]%s", color, title)
-		boxed.WriteString(boxStart + " " + title + "\n" + boxLine + "\n")
+		boxed.WriteString(boxStart + " " + title + "\n")
 	} else {
 		boxed.WriteString(boxStart + "\n")
 	}

@@ -6,8 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/busser/tfautomv/pkg/logger"
-
+	"github.com/busser/tfautomv/pkg/pretty"
 	"github.com/hashicorp/terraform-exec/tfexec"
 	tfjson "github.com/hashicorp/terraform-json"
 )
@@ -30,7 +29,7 @@ func GetPlan(ctx context.Context, workdir string, opts ...PlanOption) (*tfjson.P
 	}
 
 	if !settings.skipInit {
-		logger.Info("Running \"terraform init\"...")
+		logCommand(workdir, "terraform init")
 
 		err := tf.Init(ctx)
 		if err != nil {
@@ -39,7 +38,7 @@ func GetPlan(ctx context.Context, workdir string, opts ...PlanOption) (*tfjson.P
 	}
 
 	if !settings.skipRefresh {
-		logger.Info("Running \"terraform refresh\"...")
+		logCommand(workdir, "terraform refresh")
 
 		err := tf.Refresh(ctx)
 		if err != nil {
@@ -47,7 +46,7 @@ func GetPlan(ctx context.Context, workdir string, opts ...PlanOption) (*tfjson.P
 		}
 	}
 
-	logger.Info("Running \"terraform plan\"...")
+	logCommand(workdir, "terraform plan")
 
 	planFile, err := os.CreateTemp("", "tfautomv.*.plan")
 	if err != nil {
@@ -157,4 +156,11 @@ func isDirectory(path string) bool {
 func isInPath(bin string) bool {
 	_, err := exec.LookPath(bin)
 	return err == nil
+}
+
+func logCommand(workdir, command string) {
+	if workdir == "." {
+		workdir = "current directory"
+	}
+	os.Stderr.WriteString(pretty.Colorf("running [bold]%s[reset] in [bold]%s[reset]...", command, workdir) + "\n")
 }

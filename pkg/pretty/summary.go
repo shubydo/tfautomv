@@ -1,6 +1,7 @@
 package pretty
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 type Summarizer struct {
 	moves       []engine.Move
 	comparisons []engine.ResourceComparison
+
+	verbosity int
 
 	// used to explain moves
 	modulesWithMoves []string
@@ -29,7 +32,7 @@ type Summarizer struct {
 }
 
 // NewSummarizer returns a ready-to-use Summarizer.
-func NewSummarizer(moves []engine.Move, comparisons []engine.ResourceComparison) Summarizer {
+func NewSummarizer(moves []engine.Move, comparisons []engine.ResourceComparison, verbosity int) Summarizer {
 	// We precompute some data to simplify the explanation logic.
 
 	var modulesWithMoves []string
@@ -44,17 +47,19 @@ func NewSummarizer(moves []engine.Move, comparisons []engine.ResourceComparison)
 	matchCountToCreateByID := make(map[string]int)
 	matchCountToDeleteByID := make(map[string]int)
 	for _, c := range comparisons {
-		resourcesToCreateByID[c.PlannedForCreation.ID()] = c.PlannedForCreation
-		resourcesToDeleteByID[c.PlannedForDeletion.ID()] = c.PlannedForDeletion
+		resourcesToCreateByID[c.ToCreate.ID()] = c.ToCreate
+		resourcesToDeleteByID[c.ToDelete.ID()] = c.ToDelete
 		if c.IsMatch() {
-			matchCountToCreateByID[c.PlannedForCreation.ID()]++
-			matchCountToDeleteByID[c.PlannedForDeletion.ID()]++
+			matchCountToCreateByID[c.ToCreate.ID()]++
+			matchCountToDeleteByID[c.ToDelete.ID()]++
 		}
 	}
 
 	return Summarizer{
 		moves:       moves,
 		comparisons: comparisons,
+
+		verbosity: verbosity,
 
 		modulesWithMoves: modulesWithMoves,
 
@@ -66,20 +71,18 @@ func NewSummarizer(moves []engine.Move, comparisons []engine.ResourceComparison)
 	}
 }
 
-func (s *Summarizer) Summary(explain bool) string {
+func (s *Summarizer) Summary() string {
 	parts := []string{
 		Colorf("tfautomv made %s and found %s", StyledNumComparisons(len(s.comparisons)), StyledNumMoves(len(s.moves))),
 	}
 
-	var moves, tooManyMatches, noMatches string
+	var (
+		moves          = s.movesFound()
+		tooManyMatches = s.tooManyMatches()
+		noMatches      = s.noMatches()
+		legend         = s.legend()
+	)
 
-	moves = s.Moves()
-	if explain {
-		tooManyMatches = s.TooManyMatches()
-		noMatches = s.NoMatches()
-	}
-
-	legend := s.Legend()
 	if legend != "" {
 		parts = append(parts, legend)
 	}
@@ -96,9 +99,9 @@ func (s *Summarizer) Summary(explain bool) string {
 	return BoxSection("Summary", strings.Join(parts, "\n\n"), "cyan")
 }
 
-// Legend returns a string explaining the symbols used in the Moves and Matches
+// legend returns a string explaining the symbols used in the Moves and Matches
 // methods.
-func (s *Summarizer) Legend() string {
+func (s *Summarizer) legend() string {
 	if !s.symbolCreateUsed && !s.symbolDeleteUsed && !s.symbolIgnoredUsed {
 		return ""
 	}
@@ -118,20 +121,15 @@ func (s *Summarizer) Legend() string {
 	return strings.Join(lines, "\n")
 }
 
-// Moves returns a string explaining the moves identified by the tfautomv engine.
-func (s *Summarizer) Moves() string {
+func (s *Summarizer) movesFound() string {
 	return strings.Join(s.moveExplanations(), "\n\n")
 }
 
-// TooManyMatches returns a string explaining the matches identified by the
-// tfautomv engine for resources that had multiple matches.
-func (s *Summarizer) TooManyMatches() string {
+func (s *Summarizer) tooManyMatches() string {
 	return strings.Join(s.multipleMatchExplanations(), "\n\n")
 }
 
-// NoMatches returns a string explaining the matches identified by the tfautomv
-// engine for resources that had no matches.
-func (s *Summarizer) NoMatches() string {
+func (s *Summarizer) noMatches() string {
 	return strings.Join(s.noMatchExplanations(), "\n\n")
 }
 
@@ -170,9 +168,27 @@ func (s *Summarizer) annotatedResource(r engine.Resource, annotation string) str
 	return Colorf("%s %s in %s", s.styledAddress(r.Address), annotation, s.styledModule(r.ModuleID))
 }
 
-func (s *Summarizer) styledIgnored(comp engine.ResourceComparison) string {
-	var lines []string
+const (
+	verbosityListMoves       = 1
+	verbosityListComparisons = 1
+	verbosityCountAttributes = 2
+	verbosityListAttributes  = 3
+)
 
+func (s *Summarizer) styledIgnored(comp engine.ResourceComparison) string {
+	if len(comp.IgnoredAttributes) == 0 {
+		return ""
+	}
+
+	if s.verbosity < verbosityCountAttributes {
+		return ""
+	}
+
+	if s.verbosity < verbosityListAttributes {
+		return Colorf("%s  %s", s.symbolIgnored(), s.styledNumAttributes(len(comp.IgnoredAttributes)))
+	}
+
+	var lines []string
 	for _, attr := range comp.IgnoredAttributes {
 		lines = append(lines, Colorf("%s %s", s.symbolIgnored(), attr))
 	}
@@ -180,12 +196,31 @@ func (s *Summarizer) styledIgnored(comp engine.ResourceComparison) string {
 	return strings.Join(lines, "\n")
 }
 
-func (s *Summarizer) styledMismatches(comp engine.ResourceComparison) string {
-	var lines []string
+func (s *Summarizer) styledNumAttributes(n int) string {
+	if n == 1 {
+		return "1 attribute"
+	}
 
+	return fmt.Sprintf("%d attributes", n)
+}
+
+func (s *Summarizer) styledMismatches(comp engine.ResourceComparison) string {
+	if len(comp.MismatchingAttributes) == 0 {
+		return ""
+	}
+
+	if s.verbosity < verbosityCountAttributes {
+		return ""
+	}
+
+	if s.verbosity < verbosityListAttributes {
+		return Colorf("%s%s %s", s.symbolCreate(), s.symbolDelete(), s.styledNumAttributes(len(comp.MismatchingAttributes)))
+	}
+
+	var lines []string
 	for _, attr := range comp.MismatchingAttributes {
-		lines = append(lines, Colorf("%s %s = %#v", s.symbolCreate(), attr, comp.PlannedForCreation.Attributes[attr]))
-		lines = append(lines, Colorf("%s %s = %#v", s.symbolDelete(), attr, comp.PlannedForDeletion.Attributes[attr]))
+		lines = append(lines, Colorf("%s %s = %#v", s.symbolCreate(), attr, comp.ToCreate.Attributes[attr]))
+		lines = append(lines, Colorf("%s %s = %#v", s.symbolDelete(), attr, comp.ToDelete.Attributes[attr]))
 	}
 
 	return strings.Join(lines, "\n")
@@ -196,8 +231,8 @@ func (s *Summarizer) styledMove(m engine.Move) string {
 
 	var lines []string
 
-	lines = append(lines, Colorf("from %s", s.styledAddress(comp.PlannedForDeletion.Address)))
-	lines = append(lines, Colorf("to   %s", s.styledAddress(comp.PlannedForCreation.Address)))
+	lines = append(lines, Colorf("from %s", s.styledAddress(comp.ToDelete.Address)))
+	lines = append(lines, Colorf("to   %s", s.styledAddress(comp.ToCreate.Address)))
 
 	ignored := s.styledIgnored(comp)
 	if ignored != "" {
@@ -237,6 +272,11 @@ func (s *Summarizer) styledMovesWithinModule(module string) string {
 	}
 
 	header := Colorf("%s within %s", StyledNumMoves(len(styledMoves)), s.styledModule(module))
+
+	if s.verbosity < verbosityListMoves {
+		return header
+	}
+
 	list := BoxItems("", styledMoves, "green")
 
 	return header + "\n" + list
@@ -255,6 +295,11 @@ func (s *Summarizer) styledMovesBetweenModules(fromModule, toModule string) stri
 	}
 
 	header := Colorf("%s from %s and %s", StyledNumMoves(len(styledMoves)), s.styledModule(fromModule), s.styledModule(toModule))
+
+	if s.verbosity < verbosityListMoves {
+		return header
+	}
+
 	list := BoxItems("", styledMoves, "green")
 
 	return header + "\n" + list
@@ -317,9 +362,9 @@ func StyledNumMatches(n int) string {
 func (s *Summarizer) styledMatchesForResourceToCreate(r engine.Resource) string {
 	var styledMatches []string
 	for _, c := range s.comparisons {
-		if c.PlannedForCreation.ID() == r.ID() && c.IsMatch() {
+		if c.ToCreate.ID() == r.ID() && c.IsMatch() {
 			parts := []string{
-				s.annotatedResource(c.PlannedForDeletion, s.annotationDelete()),
+				s.annotatedResource(c.ToDelete, s.annotationDelete()),
 			}
 			styledAttributes := s.styledAttributes(c)
 			if styledAttributes != "" {
@@ -331,6 +376,11 @@ func (s *Summarizer) styledMatchesForResourceToCreate(r engine.Resource) string 
 	}
 
 	header := Colorf("%s for %s", StyledNumMatches(len(styledMatches)), s.annotatedResource(r, s.annotationCreate()))
+
+	if s.verbosity < verbosityListComparisons {
+		return header
+	}
+
 	list := BoxItems("", styledMatches, "magenta")
 
 	return header + "\n" + list
@@ -339,9 +389,9 @@ func (s *Summarizer) styledMatchesForResourceToCreate(r engine.Resource) string 
 func (s *Summarizer) styledMatchesForResourceToDelete(r engine.Resource) string {
 	var styledMatches []string
 	for _, c := range s.comparisons {
-		if c.PlannedForDeletion.ID() == r.ID() && c.IsMatch() {
+		if c.ToDelete.ID() == r.ID() && c.IsMatch() {
 			parts := []string{
-				s.annotatedResource(c.PlannedForCreation, s.annotationCreate()),
+				s.annotatedResource(c.ToCreate, s.annotationCreate()),
 			}
 			styledAttributes := s.styledAttributes(c)
 			if styledAttributes != "" {
@@ -353,6 +403,11 @@ func (s *Summarizer) styledMatchesForResourceToDelete(r engine.Resource) string 
 	}
 
 	header := Colorf("%s for %s", StyledNumMatches(len(styledMatches)), s.annotatedResource(r, s.annotationDelete()))
+
+	if s.verbosity < verbosityListComparisons {
+		return header
+	}
+
 	list := BoxItems("", styledMatches, "magenta")
 
 	return header + "\n" + list
@@ -379,9 +434,9 @@ func (s *Summarizer) multipleMatchExplanations() []string {
 func (s *Summarizer) styledNoMatchForResourceToCreate(r engine.Resource) string {
 	var styledMatches []string
 	for _, c := range s.comparisons {
-		if c.PlannedForCreation.ID() == r.ID() && !c.IsMatch() && s.matchCountToDeleteByID[c.PlannedForDeletion.ID()] == 0 {
+		if c.ToCreate.ID() == r.ID() && !c.IsMatch() && s.matchCountToDeleteByID[c.ToDelete.ID()] == 0 {
 			parts := []string{
-				s.annotatedResource(c.PlannedForDeletion, s.annotationDelete()),
+				s.annotatedResource(c.ToDelete, s.annotationDelete()),
 			}
 			styledAttributes := s.styledAttributes(c)
 			if styledAttributes != "" {
@@ -393,6 +448,11 @@ func (s *Summarizer) styledNoMatchForResourceToCreate(r engine.Resource) string 
 	}
 
 	header := Colorf("%s for %s", StyledNumMatches(0), s.annotatedResource(r, s.annotationCreate()))
+
+	if s.verbosity < verbosityListComparisons {
+		return header
+	}
+
 	list := BoxItems("", styledMatches, "red")
 
 	return header + "\n" + list
@@ -401,9 +461,9 @@ func (s *Summarizer) styledNoMatchForResourceToCreate(r engine.Resource) string 
 func (s *Summarizer) styledNoMatchForResourceToDelete(r engine.Resource) string {
 	var styledMatches []string
 	for _, c := range s.comparisons {
-		if c.PlannedForDeletion.ID() == r.ID() && !c.IsMatch() && s.matchCountToCreateByID[c.PlannedForCreation.ID()] == 0 {
+		if c.ToDelete.ID() == r.ID() && !c.IsMatch() && s.matchCountToCreateByID[c.ToCreate.ID()] == 0 {
 			parts := []string{
-				s.annotatedResource(c.PlannedForCreation, s.annotationCreate()),
+				s.annotatedResource(c.ToCreate, s.annotationCreate()),
 			}
 			styledAttributes := s.styledAttributes(c)
 			if styledAttributes != "" {
@@ -415,6 +475,11 @@ func (s *Summarizer) styledNoMatchForResourceToDelete(r engine.Resource) string 
 	}
 
 	header := Colorf("%s for %s", StyledNumMatches(0), s.annotatedResource(r, s.annotationDelete()))
+
+	if s.verbosity < verbosityListComparisons {
+		return header
+	}
+
 	list := BoxItems("", styledMatches, "red")
 
 	return header + "\n" + list
@@ -440,10 +505,10 @@ func (s *Summarizer) noMatchExplanations() []string {
 
 func (s *Summarizer) findComparison(m engine.Move) engine.ResourceComparison {
 	for _, c := range s.comparisons {
-		if c.PlannedForCreation.ModuleID == m.DestinationModule &&
-			c.PlannedForCreation.Address == m.DestinationAddress &&
-			c.PlannedForDeletion.ModuleID == m.SourceModule &&
-			c.PlannedForDeletion.Address == m.SourceAddress {
+		if c.ToCreate.ModuleID == m.DestinationModule &&
+			c.ToCreate.Address == m.DestinationAddress &&
+			c.ToDelete.ModuleID == m.SourceModule &&
+			c.ToDelete.Address == m.SourceAddress {
 			return c
 		}
 	}

@@ -11,7 +11,7 @@ func TestPrefixRuleAppliesTo(t *testing.T) {
 		"does-not-matter",
 	}
 
-	tt := []struct {
+	tests := []struct {
 		resourceType string
 		attribute    string
 		want         bool
@@ -38,16 +38,16 @@ func TestPrefixRuleAppliesTo(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
-		actual := rule.AppliesTo(tc.resourceType, tc.attribute)
-		if actual != tc.want {
-			t.Errorf("AppliesTo(%q, %q) = %t, want %t", tc.resourceType, tc.attribute, actual, tc.want)
+	for _, tt := range tests {
+		actual := rule.AppliesTo(tt.resourceType, tt.attribute)
+		if actual != tt.want {
+			t.Errorf("AppliesTo(%q, %q) = %t, want %t", tt.resourceType, tt.attribute, actual, tt.want)
 		}
 	}
 }
 
 func TestPrefixRuleEquates(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
 		valueA interface{}
 		valueB interface{}
 		prefix string
@@ -139,18 +139,18 @@ func TestPrefixRuleEquates(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tt {
+	for _, tt := range tests {
 		rule := prefixRule{
 			baseRule{
 				resourceType: "my_resource",
 				attribute:    "my_attr",
 			},
-			tc.prefix,
+			tt.prefix,
 		}
 
-		actual := rule.Equates(tc.valueA, tc.valueB)
-		if actual != tc.want {
-			t.Errorf("Equates(%q, %q) = %t, want %t", tc.valueA, tc.valueB, actual, tc.want)
+		actual := rule.Equates(tt.valueA, tt.valueB)
+		if actual != tt.want {
+			t.Errorf("Equates(%q, %q) = %t, want %t", tt.valueA, tt.valueB, actual, tt.want)
 		}
 	}
 }
