@@ -17,6 +17,7 @@ Generate Terraform `moved` blocks automatically.
 - [Usage](#usage)
   - [Generating `moved` blocks](#generating-moved-blocks)
   - [Generating `terraform state mv` commands](#generating-terraform-state-mv-commands)
+  - [Finding moves across multiple directories](#finding-moves-across-multiple-directories)
   - [Skipping the `init` and `refresh` steps](#skipping-the-init-and-refresh-steps)
   - [Understanding why a resource was not moved](#understanding-why-a-resource-was-not-moved)
   - [Ignoring certain differences](#ignoring-certain-differences)
@@ -126,6 +127,12 @@ then write `moved` blocks to a `moves.tf` file.
 
 That's all there is to it!
 
+You can also target a specific working directory:
+
+```bash
+tfautomv ./production
+```
+
 ### Generating `terraform state mv` commands
 
 If you are using a version of Terraform older than v1.1 or don't want to use
@@ -149,6 +156,35 @@ Or pipe them into a shell to run them immediately:
 ```bash
 tfautomv --output=commands | sh
 ```
+
+The `-o` flag is shorthand for `--output`:
+
+```bash
+tfautomv -o commands
+```
+
+### Finding moves across multiple directories
+
+If you have multiple Terraform modules in different directories, you can pass
+those directories to `tfautomv`:
+
+```bash
+tfautomv ./production/main ./production/backup -o commands
+```
+
+This will run `terraform init`, `terraform refresh`, and `terraform plan` in
+each directory, and then write `terraform state mv` commands to standard output.
+These commands will move resources within and across directories as needed.
+
+Terraform does not natively support moving resources across directories. To
+achieve this, `tfautomv` will output commands that pull copies of each
+directory's state, perform the moves, and then push the new state back to the
+directory's state backend.
+
+You can pass as many directories as you want to `tfautomv`.
+
+This is only compatible with the `commands` output format. Terraform's `moved`
+block syntax does not support moving resources across directories.
 
 ### Skipping the `init` and `refresh` steps
 
