@@ -194,33 +194,9 @@ Based on why the resource was not moved, you can choose to edit your code,
 write a `moved` block manually, or use the `-ignore` flag to ignore certain
 differences.
 
-<details>
-<summary><b>Example: verbosity level 0</b></summary>
-
-![verbosity level 0](./docs/images/verbosity/level-0.png)
-
-</details>
-
-<details>
-<summary><b>Example: verbosity level 1</b></summary>
-
-![verbosity level 1](./docs/images/verbosity/level-1.png)
-
-</details>
-
-<details>
-<summary><b>Example: verbosity level 2</b></summary>
-
-![verbosity level 2](./docs/images/verbosity/level-2.png)
-
-</details>
-
-<details>
-<summary><b>Example: verbosity level 3</b></summary>
-
-![verbosity level 3](./docs/images/verbosity/level-3.png)
-
-</details>
+|                     level 0 (default)                     |                      level 1 (`-v`)                       |                      level 2 (`-vv`)                      |                     level 3 (`-vvv`)                      |
+| :-------------------------------------------------------: | :-------------------------------------------------------: | :-------------------------------------------------------: | :-------------------------------------------------------: |
+| ![verbosity level 0](./docs/images/verbosity/level-0.png) | ![verbosity level 1](./docs/images/verbosity/level-1.png) | ![verbosity level 2](./docs/images/verbosity/level-2.png) | ![verbosity level 3](./docs/images/verbosity/level-3.png) |
 
 ### Ignoring certain differences
 
