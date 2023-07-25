@@ -33,20 +33,13 @@ func GetPlan(ctx context.Context, opts ...Option) (*tfjson.Plan, error) {
 		}
 	}
 
-	if !settings.skipRefresh {
-		err := tf.Refresh(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to refresh Terraform state: %w", err)
-		}
-	}
-
 	planFile, err := os.CreateTemp("", "tfautomv.*.plan")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary file to store raw plan: %w", err)
 	}
 	defer os.Remove(planFile.Name())
 
-	_, err = tf.Plan(ctx, tfexec.Out(planFile.Name()))
+	_, err = tf.Plan(ctx, tfexec.Out(planFile.Name()), tfexec.Refresh(!settings.skipRefresh))
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute Terraform plan: %w", err)
 	}

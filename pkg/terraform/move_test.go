@@ -91,6 +91,7 @@ func TestWriteMovedBlocks(t *testing.T) {
 				t.Fatalf("failed to read golden file: %v", err)
 			}
 			want := string(wantBytes)
+
 			got := buf.String()
 			if diff := cmp.Diff(want, got); diff != "" {
 				if update {
@@ -186,6 +187,7 @@ func TestWriteMoveCommands(t *testing.T) {
 				t.Fatalf("failed to read golden file: %v", err)
 			}
 			want := string(wantBytes)
+
 			got := buf.String()
 			if diff := cmp.Diff(want, got); diff != "" {
 				if update {
