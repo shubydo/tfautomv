@@ -21,6 +21,11 @@ func DisableColors() {
 	colorsDisabled = true
 }
 
+// EnableColors enables colors and other formatting.
+func EnableColors() {
+	colorsDisabled = false
+}
+
 // Color returns a string with color and other formatting applied.
 // Under the hood, this function uses the colorstring package:
 // github.com/mitchellh/colorstring

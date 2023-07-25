@@ -5,7 +5,7 @@ import (
 	"unicode"
 )
 
-func BoxItems(title string, items []string, color string) string {
+func BoxItems(items []string, color string) string {
 
 	var (
 		boxStart     = Colorf("[%s][bold]├─", color)
@@ -16,12 +16,7 @@ func BoxItems(title string, items []string, color string) string {
 
 	var boxed strings.Builder
 
-	if len(title) > 0 {
-		title = Colorf("[%s][bold]%s", color, title)
-		boxed.WriteString(boxStart + " " + title + "\n" + boxLine + "\n")
-	} else {
-		boxed.WriteString(boxStart + "\n")
-	}
+	boxed.WriteString(boxStart + "\n")
 
 	for i, item := range items {
 		if i > 0 {

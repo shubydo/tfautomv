@@ -277,7 +277,7 @@ func (s *Summarizer) styledMovesWithinModule(module string) string {
 		return header
 	}
 
-	list := BoxItems("", styledMoves, "green")
+	list := BoxItems(styledMoves, "green")
 
 	return header + "\n" + list
 }
@@ -300,7 +300,7 @@ func (s *Summarizer) styledMovesBetweenModules(fromModule, toModule string) stri
 		return header
 	}
 
-	list := BoxItems("", styledMoves, "green")
+	list := BoxItems(styledMoves, "green")
 
 	return header + "\n" + list
 }
@@ -381,7 +381,7 @@ func (s *Summarizer) styledMatchesForResourceToCreate(r engine.Resource) string 
 		return header
 	}
 
-	list := BoxItems("", styledMatches, "magenta")
+	list := BoxItems(styledMatches, "magenta")
 
 	return header + "\n" + list
 }
@@ -408,7 +408,7 @@ func (s *Summarizer) styledMatchesForResourceToDelete(r engine.Resource) string 
 		return header
 	}
 
-	list := BoxItems("", styledMatches, "magenta")
+	list := BoxItems(styledMatches, "magenta")
 
 	return header + "\n" + list
 }
@@ -453,7 +453,7 @@ func (s *Summarizer) styledNoMatchForResourceToCreate(r engine.Resource) string 
 		return header
 	}
 
-	list := BoxItems("", styledMatches, "red")
+	list := BoxItems(styledMatches, "red")
 
 	return header + "\n" + list
 }
@@ -480,7 +480,7 @@ func (s *Summarizer) styledNoMatchForResourceToDelete(r engine.Resource) string 
 		return header
 	}
 
-	list := BoxItems("", styledMatches, "red")
+	list := BoxItems(styledMatches, "red")
 
 	return header + "\n" + list
 }
