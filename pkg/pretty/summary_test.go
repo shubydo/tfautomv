@@ -438,6 +438,4 @@ func testDataComparisons() []engine.ResourceComparison {
 			IgnoredAttributes:     nil,
 		},
 	}
-
-	return nil
 }
