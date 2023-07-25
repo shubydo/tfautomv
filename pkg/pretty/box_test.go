@@ -1,25 +1,11 @@
 package pretty
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/busser/tfautomv/pkg/golden"
 )
-
-var update bool
-
-func init() {
-	flag.BoolVar(&update, "update", false, "update golden files")
-}
-
-func MainTest(m *testing.M) {
-	flag.Parse()
-	os.Exit(m.Run())
-}
 
 func TestBoxItems(t *testing.T) {
 	tests := []struct {
@@ -49,28 +35,14 @@ func TestBoxItems(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := BoxItems(tt.items, tt.color)
+	for _, colorsEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("colors %v", colorsEnabled), func(t *testing.T) {
+			setupColors(t, colorsEnabled)
 
-			// Compare the output to the golden file, and update it if necessary
-			// and the user has specified the -update flag.
-			goldenFile := fmt.Sprintf("testdata/%s.golden.txt", t.Name())
-			wantBytes, err := ioutil.ReadFile(goldenFile)
-			if err != nil {
-				t.Fatalf("failed to read golden file: %v", err)
-			}
-			want := string(wantBytes)
-
-			if diff := cmp.Diff(want, got); diff != "" {
-				if update {
-					t.Logf("updating golden file for test case %q", t.Name())
-					if err := os.WriteFile(goldenFile, []byte(got), 0644); err != nil {
-						t.Fatalf("failed to update golden file: %v", err)
-					}
-				} else {
-					t.Errorf("mismatch (-want +got):\n%s", diff)
-				}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					golden.Equal(t, BoxItems(tt.items, tt.color))
+				})
 			}
 		})
 	}
@@ -109,28 +81,14 @@ func TestBoxSection(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := BoxSection(tt.title, tt.content, tt.color)
+	for _, colorsEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("colors %v", colorsEnabled), func(t *testing.T) {
+			setupColors(t, colorsEnabled)
 
-			// Compare the output to the golden file, and update it if necessary
-			// and the user has specified the -update flag.
-			goldenFile := fmt.Sprintf("testdata/%s.golden.txt", t.Name())
-			wantBytes, err := ioutil.ReadFile(goldenFile)
-			if err != nil {
-				t.Fatalf("failed to read golden file: %v", err)
-			}
-			want := string(wantBytes)
-
-			if diff := cmp.Diff(want, got); diff != "" {
-				if update {
-					t.Logf("updating golden file for test case %q", t.Name())
-					if err := os.WriteFile(goldenFile, []byte(got), 0644); err != nil {
-						t.Fatalf("failed to update golden file: %v", err)
-					}
-				} else {
-					t.Errorf("mismatch (-want +got):\n%s", diff)
-				}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					golden.Equal(t, BoxSection(tt.title, tt.content, tt.color))
+				})
 			}
 		})
 	}

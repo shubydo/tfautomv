@@ -8,12 +8,18 @@ import (
 
 const colorEscape = "\x1b"
 
-func TestColor(t *testing.T) {
+func setupColors(t *testing.T, enabled bool) {
+	t.Helper()
+
 	previous := colorsDisabled
-	colorsDisabled = false
+	colorsDisabled = !enabled
 	t.Cleanup(func() {
 		colorsDisabled = previous
 	})
+}
+
+func TestColor(t *testing.T) {
+	setupColors(t, true)
 
 	tests := []struct {
 		name string
@@ -54,11 +60,7 @@ func TestColor(t *testing.T) {
 }
 
 func TestNoColor(t *testing.T) {
-	previous := colorsDisabled
-	colorsDisabled = true
-	t.Cleanup(func() {
-		colorsDisabled = previous
-	})
+	setupColors(t, false)
 
 	tests := []struct {
 		name string

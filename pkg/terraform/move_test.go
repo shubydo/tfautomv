@@ -2,24 +2,10 @@ package terraform
 
 import (
 	"bytes"
-	"flag"
-	"fmt"
-	"os"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/busser/tfautomv/pkg/golden"
 )
-
-var update bool
-
-func init() {
-	flag.BoolVar(&update, "update", false, "update golden files")
-}
-
-func MainTest(m *testing.M) {
-	flag.Parse()
-	os.Exit(m.Run())
-}
 
 func TestWriteMovedBlocks(t *testing.T) {
 	tests := []struct {
@@ -83,26 +69,7 @@ func TestWriteMovedBlocks(t *testing.T) {
 				t.Fatalf("expected error but got none")
 			}
 
-			// Compare the output to the golden file, and update it if necessary
-			// and the user has specified the -update flag.
-			goldenFile := fmt.Sprintf("testdata/%s.golden.tf", t.Name())
-			wantBytes, err := os.ReadFile(goldenFile)
-			if err != nil {
-				t.Fatalf("failed to read golden file: %v", err)
-			}
-			want := string(wantBytes)
-
-			got := buf.String()
-			if diff := cmp.Diff(want, got); diff != "" {
-				if update {
-					t.Logf("updating golden file for test case %q", t.Name())
-					if err := os.WriteFile(goldenFile, []byte(got), 0644); err != nil {
-						t.Fatalf("failed to update golden file: %v", err)
-					}
-				} else {
-					t.Errorf("mismatch (-want +got):\n%s", diff)
-				}
-			}
+			golden.Equal(t, buf.String())
 		})
 	}
 }
@@ -179,26 +146,7 @@ func TestWriteMoveCommands(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Compare the output to the golden file, and update it if necessary
-			// and the user has specified the -update flag.
-			goldenFile := fmt.Sprintf("testdata/%s.golden.sh", t.Name())
-			wantBytes, err := os.ReadFile(goldenFile)
-			if err != nil {
-				t.Fatalf("failed to read golden file: %v", err)
-			}
-			want := string(wantBytes)
-
-			got := buf.String()
-			if diff := cmp.Diff(want, got); diff != "" {
-				if update {
-					t.Logf("updating golden file for test case %q", t.Name())
-					if err := os.WriteFile(goldenFile, []byte(got), 0644); err != nil {
-						t.Fatalf("failed to update golden file: %v", err)
-					}
-				} else {
-					t.Errorf("mismatch (-want +got):\n%s", diff)
-				}
-			}
+			golden.Equal(t, buf.String())
 		})
 	}
 }

@@ -222,8 +222,7 @@ func getPlans(ctx context.Context, workdirs []string, options []terraform.Option
 	getPlan := func(i int) {
 		workdir := workdirs[i]
 
-		os.Stderr.WriteString(pretty.Colorf("getting Terraform plan for [bold]%s[reset]...", workdir))
-		os.Stderr.WriteString("\n")
+		os.Stderr.WriteString(pretty.Colorf("getting Terraform plan for %s...", (*pretty.Summarizer).StyledModule(nil, workdir)) + "\n")
 
 		workdirOptions := append(
 			[]terraform.Option{terraform.WithWorkdir(workdir)},

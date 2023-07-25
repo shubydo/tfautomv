@@ -152,7 +152,10 @@ func (s *Summarizer) styledAddress(addr string) string {
 	return Colorf("[bold]%s", addr)
 }
 
-func (s *Summarizer) styledModule(module string) string {
+func (s *Summarizer) StyledModule(module string) string {
+	if module == "." {
+		module = "current directory"
+	}
 	return Colorf("[bold]%s", module)
 }
 
@@ -165,7 +168,7 @@ func (s *Summarizer) annotationDelete() string {
 }
 
 func (s *Summarizer) annotatedResource(r engine.Resource, annotation string) string {
-	return Colorf("%s %s in %s", s.styledAddress(r.Address), annotation, s.styledModule(r.ModuleID))
+	return Colorf("%s %s in %s", s.styledAddress(r.Address), annotation, s.StyledModule(r.ModuleID))
 }
 
 const (
@@ -271,7 +274,7 @@ func (s *Summarizer) styledMovesWithinModule(module string) string {
 		return ""
 	}
 
-	header := Colorf("%s within %s", StyledNumMoves(len(styledMoves)), s.styledModule(module))
+	header := Colorf("%s within %s", StyledNumMoves(len(styledMoves)), s.StyledModule(module))
 
 	if s.verbosity < verbosityListMoves {
 		return header
@@ -294,7 +297,7 @@ func (s *Summarizer) styledMovesBetweenModules(fromModule, toModule string) stri
 		return ""
 	}
 
-	header := Colorf("%s from %s and %s", StyledNumMoves(len(styledMoves)), s.styledModule(fromModule), s.styledModule(toModule))
+	header := Colorf("%s from %s and %s", StyledNumMoves(len(styledMoves)), s.StyledModule(fromModule), s.StyledModule(toModule))
 
 	if s.verbosity < verbosityListMoves {
 		return header
