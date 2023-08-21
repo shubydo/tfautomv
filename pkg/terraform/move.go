@@ -101,12 +101,14 @@ func WriteMoveCommands(w io.Writer, moves []Move) error {
 	workdirs = unique(workdirs)
 	sort.Strings(workdirs)
 
-	const localCopyFileName = ".tfautomv/local-copy.tfstate"
+	const localCopyFileName = ".tfautomv.tfstate"
 
-	for _, module := range workdirs {
+	for _, workdir := range workdirs {
 		commands = append(commands,
 			fmt.Sprintf("terraform -chdir=%q state pull > %q",
-				module, filepath.Join(module, localCopyFileName)),
+				workdir,
+				filepath.Join(workdir, localCopyFileName),
+			),
 		)
 	}
 
@@ -123,16 +125,19 @@ func WriteMoveCommands(w io.Writer, moves []Move) error {
 				filepath.Join(move.FromWorkdir, localCopyFileName),
 				filepath.Join(move.ToWorkdir, localCopyFileName),
 				move.FromAddress,
-				move.ToAddress),
+				move.ToAddress,
+			),
 		)
 	}
 
 	// Then, push the states of all modules we manipulated.
 
-	for _, m := range workdirs {
+	for _, workdir := range workdirs {
 		commands = append(commands,
 			fmt.Sprintf("terraform -chdir=%q state push %q",
-				m, localCopyFileName),
+				workdir,
+				localCopyFileName,
+			),
 		)
 	}
 
